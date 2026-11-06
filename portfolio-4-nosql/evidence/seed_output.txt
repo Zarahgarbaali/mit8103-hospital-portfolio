@@ -1,0 +1,5 @@
+patient_records inserted: 20
+lab_results inserted: 51
+validation: invalid document rejected (121)
+patients with at least one visit: 20
+total visits: 57
