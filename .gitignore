@@ -1,0 +1,9 @@
+.DS_Store
+*.log
+docker/pg_data/
+docker/mongo_data/
+.env
+*.bak
+node_modules/
+__pycache__/
+*.swp
