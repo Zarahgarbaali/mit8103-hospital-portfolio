@@ -1,0 +1,62 @@
+# 02_isolation_levels.sql scenario 2b (repeatable_read), run 2026-11-07 00:46:39 WAT
+
+## Session A
+
+[A] change patient 1 phone and commit after 2 s
+BEGIN ISOLATION LEVEL READ COMMITTED;
+BEGIN
+UPDATE patient SET phone = '+2348099999999' WHERE patient_id = 1;
+UPDATE 1
+SELECT pg_sleep(2);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+COMMIT;
+COMMIT
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, 'A committed' AS event;
+      at      |    event    
+--------------+-------------
+ 00:46:38.011 | A committed
+(1 row)
+
+
+## Session B (started 0.5 s after Session A)
+
+[B] REPEATABLE READ: the snapshot is fixed at the first query
+BEGIN ISOLATION LEVEL REPEATABLE READ;
+BEGIN
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, phone AS b_first_read
+FROM patient WHERE patient_id = 1;
+      at      |  b_first_read  
+--------------+----------------
+ 00:46:36.529 | +2348010104729
+(1 row)
+
+SELECT pg_sleep(2.5);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, phone AS b_second_read
+FROM patient WHERE patient_id = 1;
+      at      | b_second_read  
+--------------+----------------
+ 00:46:39.036 | +2348010104729
+(1 row)
+
+UPDATE patient SET address = 'Plot 14, Garki, Abuja' WHERE patient_id = 1;
+psql:/tmp/s2bb.sql:11: ERROR:  could not serialize access due to concurrent update
+ROLLBACK;
+ROLLBACK
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, phone AS b_after_new_transaction
+FROM patient WHERE patient_id = 1;
+      at      | b_after_new_transaction 
+--------------+-------------------------
+ 00:46:39.038 | +2348099999999
+(1 row)
+
+UPDATE patient SET phone = '+2348010104729' WHERE patient_id = 1;
+UPDATE 1

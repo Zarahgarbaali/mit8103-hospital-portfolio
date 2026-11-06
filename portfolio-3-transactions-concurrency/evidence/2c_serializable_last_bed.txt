@@ -1,0 +1,102 @@
+# 02_isolation_levels.sql scenario 2c (serializable_last_bed), run 2026-11-07 00:46:41 WAT
+
+## Session A
+
+[A] SERIALIZABLE: nurse A finds the first free bed in the Children's Ward and admits patient 45
+BEGIN ISOLATION LEVEL SERIALIZABLE;
+BEGIN
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, min(b) AS a_first_free_bed
+FROM generate_series(1, (SELECT total_beds FROM ward WHERE ward_id = 2)) AS b
+WHERE b NOT IN (SELECT bed_number FROM admission WHERE ward_id = 2 AND discharged_at IS NULL);
+      at      | a_first_free_bed 
+--------------+------------------
+ 00:46:39.266 |                1
+(1 row)
+
+SELECT pg_sleep(1);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+INSERT INTO admission (patient_id, ward_id, bed_number)
+SELECT 45, 2, min(b)
+FROM generate_series(1, (SELECT total_beds FROM ward WHERE ward_id = 2)) AS b
+WHERE b NOT IN (SELECT bed_number FROM admission WHERE ward_id = 2 AND discharged_at IS NULL)
+RETURNING admission_id, patient_id, bed_number, to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at;
+ admission_id | patient_id | bed_number |      at      
+--------------+------------+------------+--------------
+        30021 |         45 |          1 | 00:46:40.279
+(1 row)
+
+INSERT 0 1
+SELECT pg_sleep(1);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+COMMIT;
+COMMIT
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, 'A committed' AS event;
+      at      |    event    
+--------------+-------------
+ 00:46:41.288 | A committed
+(1 row)
+
+
+## Session B (started 0.5 s after Session A)
+
+[B] SERIALIZABLE: nurse B looks at the same ward at the same moment and admits patient 46
+BEGIN ISOLATION LEVEL SERIALIZABLE;
+BEGIN
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, min(b) AS b_first_free_bed
+FROM generate_series(1, (SELECT total_beds FROM ward WHERE ward_id = 2)) AS b
+WHERE b NOT IN (SELECT bed_number FROM admission WHERE ward_id = 2 AND discharged_at IS NULL);
+      at      | b_first_free_bed 
+--------------+------------------
+ 00:46:39.807 |                1
+(1 row)
+
+SELECT pg_sleep(1);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+INSERT INTO admission (patient_id, ward_id, bed_number)
+SELECT 46, 2, min(b)
+FROM generate_series(1, (SELECT total_beds FROM ward WHERE ward_id = 2)) AS b
+WHERE b NOT IN (SELECT bed_number FROM admission WHERE ward_id = 2 AND discharged_at IS NULL)
+RETURNING admission_id, patient_id, bed_number;
+psql:/tmp/s2cb.sql:12: ERROR:  could not serialize access due to read/write dependencies among transactions
+DETAIL:  Reason code: Canceled on identification as a pivot, during write.
+HINT:  The transaction might succeed if retried.
+ROLLBACK;
+ROLLBACK
+[B] retry: the application re-runs the whole transaction and gets the next bed
+BEGIN ISOLATION LEVEL SERIALIZABLE;
+BEGIN
+INSERT INTO admission (patient_id, ward_id, bed_number)
+SELECT 46, 2, min(b)
+FROM generate_series(1, (SELECT total_beds FROM ward WHERE ward_id = 2)) AS b
+WHERE b NOT IN (SELECT bed_number FROM admission WHERE ward_id = 2 AND discharged_at IS NULL)
+RETURNING admission_id, patient_id, bed_number, to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at;
+ admission_id | patient_id | bed_number |      at      
+--------------+------------+------------+--------------
+        30023 |         46 |          2 | 00:46:41.290
+(1 row)
+
+INSERT 0 1
+COMMIT;
+COMMIT
+SELECT patient_id, ward_id, bed_number FROM admission
+WHERE patient_id IN (45, 46) AND discharged_at IS NULL ORDER BY patient_id;
+ patient_id | ward_id | bed_number 
+------------+---------+------------
+         45 |       2 |          1
+         46 |       2 |          2
+(2 rows)
+
+DELETE FROM admission WHERE patient_id IN (45, 46) AND discharged_at IS NULL;
+DELETE 2

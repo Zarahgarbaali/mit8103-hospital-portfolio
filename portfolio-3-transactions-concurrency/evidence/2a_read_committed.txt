@@ -1,0 +1,60 @@
+# 02_isolation_levels.sql scenario 2a (read_committed), run 2026-11-07 00:46:35 WAT
+
+## Session A
+
+[A] READ COMMITTED: change patient 1 phone and keep the transaction open
+BEGIN ISOLATION LEVEL READ COMMITTED;
+BEGIN
+UPDATE patient SET phone = '+2348099999999' WHERE patient_id = 1;
+UPDATE 1
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, phone AS a_sees_own_change
+FROM patient WHERE patient_id = 1;
+      at      | a_sees_own_change 
+--------------+-------------------
+ 00:46:32.759 | +2348099999999
+(1 row)
+
+SELECT pg_sleep(2);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+COMMIT;
+COMMIT
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, 'A committed' AS event;
+      at      |    event    
+--------------+-------------
+ 00:46:34.768 | A committed
+(1 row)
+
+
+## Session B (started 0.5 s after Session A)
+
+[B] READ COMMITTED: read the same row twice inside one transaction
+BEGIN ISOLATION LEVEL READ COMMITTED;
+BEGIN
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, phone AS b_first_read
+FROM patient WHERE patient_id = 1;
+      at      |  b_first_read  
+--------------+----------------
+ 00:46:33.277 | +2348010104729
+(1 row)
+
+SELECT pg_sleep(2.5);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, phone AS b_second_read
+FROM patient WHERE patient_id = 1;
+      at      | b_second_read  
+--------------+----------------
+ 00:46:35.786 | +2348099999999
+(1 row)
+
+COMMIT;
+COMMIT
+UPDATE patient SET phone = '+2348010104729' WHERE patient_id = 1;
+UPDATE 1

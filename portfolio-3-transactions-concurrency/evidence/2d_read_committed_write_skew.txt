@@ -1,0 +1,102 @@
+# 02_isolation_levels.sql scenario 2d (read_committed_write_skew), run 2026-11-07 00:46:44 WAT
+
+## Session A
+
+[A] READ COMMITTED: Dr. Okafor's emergency clinic in 60 days takes ONE booking. Receptionist A checks, then books patient 45
+BEGIN ISOLATION LEVEL READ COMMITTED;
+BEGIN
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, count(*) AS a_sees_booked
+FROM appointment
+WHERE doctor_id = 1 AND scheduled_for >= current_date + 60 AND scheduled_for < current_date + 61;
+      at      | a_sees_booked 
+--------------+---------------
+ 00:46:41.501 |             0
+(1 row)
+
+SELECT pg_sleep(1);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+INSERT INTO appointment (patient_id, doctor_id, scheduled_for, reason)
+SELECT 45, 1, current_date + 60 + time '09:00', 'Isolation demo: emergency clinic'
+WHERE (SELECT count(*) FROM appointment
+       WHERE doctor_id = 1 AND scheduled_for >= current_date + 60 AND scheduled_for < current_date + 61) < 1
+RETURNING appointment_id, patient_id, to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at;
+ appointment_id | patient_id |      at      
+----------------+------------+--------------
+         500114 |         45 | 00:46:42.505
+(1 row)
+
+INSERT 0 1
+SELECT pg_sleep(1);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+COMMIT;
+COMMIT
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, 'A committed' AS event;
+      at      |    event    
+--------------+-------------
+ 00:46:43.517 | A committed
+(1 row)
+
+
+## Session B (started 0.5 s after Session A)
+
+[B] READ COMMITTED: receptionist B checks the same clinic, then books patient 46
+BEGIN ISOLATION LEVEL READ COMMITTED;
+BEGIN
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, count(*) AS b_sees_booked
+FROM appointment
+WHERE doctor_id = 1 AND scheduled_for >= current_date + 60 AND scheduled_for < current_date + 61;
+      at      | b_sees_booked 
+--------------+---------------
+ 00:46:42.076 |             0
+(1 row)
+
+SELECT pg_sleep(1);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+INSERT INTO appointment (patient_id, doctor_id, scheduled_for, reason)
+SELECT 46, 1, current_date + 60 + time '09:15', 'Isolation demo: emergency clinic'
+WHERE (SELECT count(*) FROM appointment
+       WHERE doctor_id = 1 AND scheduled_for >= current_date + 60 AND scheduled_for < current_date + 61) < 1
+RETURNING appointment_id, patient_id, to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at;
+ appointment_id | patient_id |      at      
+----------------+------------+--------------
+         500115 |         46 | 00:46:43.088
+(1 row)
+
+INSERT 0 1
+SELECT pg_sleep(1);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+COMMIT;
+COMMIT
+SELECT pg_sleep(0.5);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+[B] result: the one-booking clinic now has two bookings (write skew)
+SELECT count(*) AS bookings_for_clinic
+FROM appointment
+WHERE doctor_id = 1 AND scheduled_for >= current_date + 60 AND scheduled_for < current_date + 61;
+ bookings_for_clinic 
+---------------------
+                   2
+(1 row)
+
+DELETE FROM appointment WHERE reason = 'Isolation demo: emergency clinic';
+DELETE 2
