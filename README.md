@@ -16,7 +16,7 @@
 
 ## Stack
 
-PostgreB 7, Docker, DBeaver, MongoDB Compass.
+PostgreSQL 16, MongoDB 7, Docker, DBeaver, MongoDB Compass.
 
 ## Status
 
