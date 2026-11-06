@@ -1,0 +1,204 @@
+-- queries.sql run against the Portfolio 1 seed data (2026-11-07 00:35 WAT)
+
+SELECT a.appointment_id,
+       a.scheduled_for,
+       p.first_name || ' ' || p.last_name AS patient,
+       a.status,
+       a.reason
+FROM appointment a
+JOIN patient p ON p.patient_id = a.patient_id
+WHERE a.doctor_id = 1
+  AND a.scheduled_for >= current_date - 17
+  AND a.scheduled_for <  current_date - 16
+ORDER BY a.scheduled_for;
+ appointment_id |     scheduled_for      |       patient       |  status   |          reason           
+----------------+------------------------+---------------------+-----------+---------------------------
+             83 | 2026-10-21 13:00:00+01 | Chukwuemeka Danladi | completed | Diabetes review
+             60 | 2026-10-21 15:00:00+01 | Chiamaka Mohammed   | cancelled | Follow-up after treatment
+(2 rows)
+
+SELECT m.medication_id,
+       m.name,
+       count(*) AS times_prescribed
+FROM prescription pr
+JOIN medication m ON m.medication_id = pr.medication_id
+WHERE pr.issued_at >= now() - interval '30 days'
+GROUP BY m.medication_id, m.name
+ORDER BY times_prescribed DESC, m.name
+LIMIT 5;
+ medication_id |               name               | times_prescribed 
+---------------+----------------------------------+------------------
+            10 | Oral Rehydration Salts           |                3
+             1 | Paracetamol 500mg                |                3
+             4 | Amlodipine 5mg                   |                1
+             2 | Artemether/Lumefantrine 80/480mg |                1
+            11 | Diclofenac 50mg                  |                1
+(5 rows)
+
+SELECT d.department_id,
+       d.name AS department,
+       count(*)            AS invoices,
+       sum(i.total_amount) AS revenue
+FROM invoice i
+JOIN invoice_item ii ON ii.invoice_id = i.invoice_id AND ii.item_type = 'consultation'
+JOIN appointment  a  ON a.appointment_id = ii.reference_id
+JOIN staff        s  ON s.staff_id = a.doctor_id
+JOIN department   d  ON d.department_id = s.department_id
+WHERE i.issued_at >= date_trunc('month', now())
+  AND i.issued_at <  date_trunc('month', now()) + interval '1 month'
+  AND i.status <> 'cancelled'
+GROUP BY d.department_id, d.name
+ORDER BY revenue DESC;
+ department_id | department | invoices | revenue  
+---------------+------------+----------+----------
+             4 | Surgery    |        1 | 17100.00
+(1 row)
+
+SELECT p.patient_id,
+       p.first_name,
+       p.last_name,
+       count(*) AS appointments_6m
+FROM appointment a
+JOIN patient p ON p.patient_id = a.patient_id
+WHERE a.scheduled_for >= now() - interval '6 months'
+  AND a.scheduled_for <  now()
+  AND a.status <> 'cancelled'
+GROUP BY p.patient_id, p.first_name, p.last_name
+HAVING count(*) > 3
+ORDER BY appointments_6m DESC, p.patient_id;
+ patient_id | first_name | last_name | appointments_6m 
+------------+------------+-----------+-----------------
+          1 | Amina      | Eze       |               8
+         13 | Funmilayo  | Adebayo   |               5
+         18 | Adewale    | Ogunbiyi  |               4
+         30 | Femi       | Yusuf     |               4
+         50 | Ekene      | Nnadi     |               4
+(5 rows)
+
+SELECT lo.lab_order_id,
+       p.first_name || ' ' || p.last_name   AS patient,
+       lt.name                              AS test,
+       'Dr. ' || s.first_name || ' ' || s.last_name AS ordered_by,
+       lo.ordered_at,
+       date_trunc('minute', now() - lo.ordered_at) AS waiting
+FROM lab_order lo
+JOIN patient  p  ON p.patient_id = lo.patient_id
+JOIN lab_test lt ON lt.lab_test_id = lo.lab_test_id
+JOIN staff    s  ON s.staff_id = lo.ordered_by
+WHERE lo.status = 'pending'
+  AND lo.ordered_at < now() - interval '24 hours'
+ORDER BY lo.ordered_at;
+ lab_order_id |     patient      |                   test                    |    ordered_by    |          ordered_at           |     waiting     
+--------------+------------------+-------------------------------------------+------------------+-------------------------------+-----------------
+           46 | Babatunde Lawal  | Urinalysis                                | Dr. Fatima Bello | 2026-11-05 00:27:42.723754+01 | 2 days 00:08:00
+           45 | Yetunde Mohammed | Hepatitis B Surface Antigen               | Dr. Ibrahim Musa | 2026-11-05 08:27:42.723754+01 | 1 day 16:08:00
+           44 | Khadija Suleiman | Urine Microscopy, Culture and Sensitivity | Dr. Fatima Bello | 2026-11-05 16:27:42.723754+01 | 1 day 08:08:00
+           43 | Khadija Suleiman | Hepatitis B Surface Antigen               | Dr. Ibrahim Musa | 2026-11-06 00:27:42.723754+01 | 1 day 00:08:00
+(4 rows)
+
+SELECT w.ward_id,
+       w.name,
+       w.total_beds,
+       count(a.admission_id)                AS occupied,
+       w.total_beds - count(a.admission_id) AS free,
+       round(100.0 * count(a.admission_id) / w.total_beds, 1) AS occupancy_pct
+FROM ward w
+LEFT JOIN admission a ON a.ward_id = w.ward_id AND a.discharged_at IS NULL
+GROUP BY w.ward_id, w.name, w.total_beds
+ORDER BY w.ward_id;
+ ward_id |      name       | total_beds | occupied | free | occupancy_pct 
+---------+-----------------+------------+----------+------+---------------
+       1 | Medical Ward A  |         10 |        2 |    8 |          20.0
+       2 | Children's Ward |          8 |        2 |    6 |          25.0
+       3 | Maternity Ward  |          8 |        2 |    6 |          25.0
+       4 | Surgical Ward   |         10 |        2 |    8 |          20.0
+(4 rows)
+
+SELECT DISTINCT p.patient_id,
+       p.first_name,
+       p.last_name,
+       d.recorded_at::date AS diagnosed_on
+FROM diagnosis    d
+JOIN prescription pr ON pr.diagnosis_id = d.diagnosis_id
+JOIN medication   m  ON m.medication_id = pr.medication_id
+JOIN appointment  a  ON a.appointment_id = d.appointment_id
+JOIN patient      p  ON p.patient_id = a.patient_id
+WHERE d.icd_code = 'B54'
+  AND m.name = 'Artemether/Lumefantrine 80/480mg'
+ORDER BY diagnosed_on DESC, p.patient_id;
+ patient_id | first_name  | last_name | diagnosed_on 
+------------+-------------+-----------+--------------
+         30 | Femi        | Yusuf     | 2026-10-29
+         50 | Ekene       | Nnadi     | 2026-08-26
+         27 | Uchenna     | Olawale   | 2026-07-24
+         31 | Ebere       | Eze       | 2026-06-12
+          2 | Chukwuemeka | Danladi   | 2026-05-22
+(5 rows)
+
+SELECT s.staff_id,
+       'Dr. ' || s.first_name || ' ' || s.last_name AS doctor,
+       count(*) AS diagnoses,
+       date_trunc('second', avg(d.recorded_at - a.scheduled_for)) AS avg_time_to_diagnosis
+FROM diagnosis   d
+JOIN appointment a ON a.appointment_id = d.appointment_id
+JOIN staff       s ON s.staff_id = a.doctor_id
+GROUP BY s.staff_id, s.first_name, s.last_name
+ORDER BY avg_time_to_diagnosis;
+ staff_id |        doctor         | diagnoses | avg_time_to_diagnosis 
+----------+-----------------------+-----------+-----------------------
+        3 | Dr. Oluwaseun Adeyemi |        11 | 00:32:31
+        2 | Dr. Fatima Bello      |        11 | 00:33:20
+        5 | Dr. Ibrahim Musa      |        14 | 00:34:57
+        4 | Dr. Ngozi Eze         |         9 | 00:38:48
+        6 | Dr. Emeka Nwosu       |        12 | 00:41:41
+        1 | Dr. Chinedu Okafor    |         3 | 00:43:38
+(6 rows)
+
+SELECT p.patient_id,
+       p.first_name || ' ' || p.last_name           AS patient,
+       p.phone,
+       sum(i.total_amount)                           AS billed,
+       sum(COALESCE(pay.paid, 0))                    AS paid,
+       sum(i.total_amount - COALESCE(pay.paid, 0))   AS outstanding
+FROM invoice i
+JOIN patient p ON p.patient_id = i.patient_id
+LEFT JOIN (SELECT invoice_id, sum(amount) AS paid
+           FROM payment GROUP BY invoice_id) pay ON pay.invoice_id = i.invoice_id
+WHERE i.status IN ('unpaid', 'partially_paid')
+GROUP BY p.patient_id, p.first_name, p.last_name, p.phone
+ORDER BY outstanding DESC
+LIMIT 10;
+ patient_id |      patient      |     phone      |  billed  |   paid   | outstanding 
+------------+-------------------+----------------+----------+----------+-------------
+         36 | Rotimi Adeleke    | +2348013770244 | 62300.00 |        0 |    62300.00
+         34 | Bashir Balogun    | +2348013560786 | 60500.00 |        0 |    60500.00
+          1 | Amina Eze         | +2348010104729 | 73700.00 | 22200.00 |    51500.00
+         44 | Ifeanyi Abdullahi | +2348014608076 | 48300.00 |        0 |    48300.00
+         10 | Sadiq Chukwu      | +2348011047290 | 55800.00 | 12000.00 |    43800.00
+         18 | Adewale Ogunbiyi  | +2348011885122 | 67800.00 | 25500.00 |    42300.00
+         50 | Ekene Nnadi       | +2348015236450 | 77000.00 | 38500.00 |    38500.00
+          6 | Olumide Adeleke   | +2348010628374 | 35200.00 |        0 |    35200.00
+         25 | Bukola Akinola    | +2348012618225 | 67500.00 | 33750.00 |    33750.00
+         41 | Damilola Uche     | +2348014293889 | 24000.00 |        0 |    24000.00
+(10 rows)
+
+SELECT d.name AS department,
+       'Dr. ' || s.first_name || ' ' || s.last_name AS doctor,
+       count(*) AS completed_appointments,
+       RANK() OVER (PARTITION BY d.department_id ORDER BY count(*) DESC) AS rank_in_department
+FROM appointment a
+JOIN staff      s ON s.staff_id = a.doctor_id
+JOIN department d ON d.department_id = s.department_id
+WHERE a.status = 'completed'
+GROUP BY d.department_id, d.name, s.staff_id, s.first_name, s.last_name
+ORDER BY d.name, rank_in_department;
+         department         |        doctor         | completed_appointments | rank_in_department 
+----------------------------+-----------------------+------------------------+--------------------
+ General Medicine           | Dr. Fatima Bello      |                     16 |                  1
+ General Medicine           | Dr. Chinedu Okafor    |                      6 |                  2
+ Obstetrics and Gynaecology | Dr. Ngozi Eze         |                     11 |                  1
+ Paediatrics                | Dr. Oluwaseun Adeyemi |                     13 |                  1
+ Surgery                    | Dr. Emeka Nwosu       |                     15 |                  1
+ Surgery                    | Dr. Ibrahim Musa      |                     14 |                  2
+(6 rows)
+
