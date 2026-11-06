@@ -1,0 +1,69 @@
+-- Row counts after loading schema.sql, indexes.sql, seed.sql (2026-11-07 00:28 WAT)
+  table_name  | rows 
+--------------+------
+ patient      |   50
+ department   |    5
+ staff        |   15
+ appointment  |  100
+ diagnosis    |   60
+ medication   |   30
+ prescription |   80
+ lab_test     |   20
+ lab_order    |   48
+ lab_result   |   40
+ ward         |    4
+ admission    |   20
+ invoice      |   50
+ invoice_item |  147
+ payment      |   40
+ audit_log    |    0
+(16 rows)
+
+                                                               List of relations
+ Schema |                Name                 | Type  |     Owner      |    Table     | Persistence | Access method |    Size    | Description 
+--------+-------------------------------------+-------+----------------+--------------+-------------+---------------+------------+-------------
+ public | admission_pkey                      | index | hospital_admin | admission    | permanent   | btree         | 16 kB      | 
+ public | appointment_pkey                    | index | hospital_admin | appointment  | permanent   | btree         | 16 kB      | 
+ public | audit_log_pkey                      | index | hospital_admin | audit_log    | permanent   | btree         | 8192 bytes | 
+ public | department_name_key                 | index | hospital_admin | department   | permanent   | btree         | 16 kB      | 
+ public | department_pkey                     | index | hospital_admin | department   | permanent   | btree         | 16 kB      | 
+ public | diagnosis_pkey                      | index | hospital_admin | diagnosis    | permanent   | btree         | 16 kB      | 
+ public | idx_admission_patient               | index | hospital_admin | admission    | permanent   | btree         | 16 kB      | 
+ public | idx_admission_ward                  | index | hospital_admin | admission    | permanent   | btree         | 16 kB      | 
+ public | idx_appointment_doctor_date         | index | hospital_admin | appointment  | permanent   | btree         | 16 kB      | 
+ public | idx_appointment_patient             | index | hospital_admin | appointment  | permanent   | btree         | 16 kB      | 
+ public | idx_audit_log_row                   | index | hospital_admin | audit_log    | permanent   | btree         | 8192 bytes | 
+ public | idx_diagnosis_appointment           | index | hospital_admin | diagnosis    | permanent   | btree         | 16 kB      | 
+ public | idx_invoice_item_invoice            | index | hospital_admin | invoice_item | permanent   | btree         | 16 kB      | 
+ public | idx_invoice_patient                 | index | hospital_admin | invoice      | permanent   | btree         | 16 kB      | 
+ public | idx_lab_order_ordered_by            | index | hospital_admin | lab_order    | permanent   | btree         | 16 kB      | 
+ public | idx_lab_order_patient               | index | hospital_admin | lab_order    | permanent   | btree         | 16 kB      | 
+ public | idx_lab_order_test                  | index | hospital_admin | lab_order    | permanent   | btree         | 16 kB      | 
+ public | idx_lab_result_recorded_by          | index | hospital_admin | lab_result   | permanent   | btree         | 16 kB      | 
+ public | idx_payment_invoice                 | index | hospital_admin | payment      | permanent   | btree         | 16 kB      | 
+ public | idx_prescription_medication         | index | hospital_admin | prescription | permanent   | btree         | 16 kB      | 
+ public | idx_staff_department                | index | hospital_admin | staff        | permanent   | btree         | 16 kB      | 
+ public | idx_ward_department                 | index | hospital_admin | ward         | permanent   | btree         | 16 kB      | 
+ public | invoice_item_pkey                   | index | hospital_admin | invoice_item | permanent   | btree         | 16 kB      | 
+ public | invoice_pkey                        | index | hospital_admin | invoice      | permanent   | btree         | 16 kB      | 
+ public | lab_order_pkey                      | index | hospital_admin | lab_order    | permanent   | btree         | 16 kB      | 
+ public | lab_result_lab_order_id_key         | index | hospital_admin | lab_result   | permanent   | btree         | 16 kB      | 
+ public | lab_result_pkey                     | index | hospital_admin | lab_result   | permanent   | btree         | 16 kB      | 
+ public | lab_test_name_key                   | index | hospital_admin | lab_test     | permanent   | btree         | 16 kB      | 
+ public | lab_test_pkey                       | index | hospital_admin | lab_test     | permanent   | btree         | 16 kB      | 
+ public | medication_name_key                 | index | hospital_admin | medication   | permanent   | btree         | 16 kB      | 
+ public | medication_pkey                     | index | hospital_admin | medication   | permanent   | btree         | 16 kB      | 
+ public | patient_phone_key                   | index | hospital_admin | patient      | permanent   | btree         | 16 kB      | 
+ public | patient_pkey                        | index | hospital_admin | patient      | permanent   | btree         | 16 kB      | 
+ public | payment_pkey                        | index | hospital_admin | payment      | permanent   | btree         | 16 kB      | 
+ public | prescription_one_drug_per_diagnosis | index | hospital_admin | prescription | permanent   | btree         | 16 kB      | 
+ public | prescription_pkey                   | index | hospital_admin | prescription | permanent   | btree         | 16 kB      | 
+ public | staff_email_key                     | index | hospital_admin | staff        | permanent   | btree         | 16 kB      | 
+ public | staff_phone_key                     | index | hospital_admin | staff        | permanent   | btree         | 16 kB      | 
+ public | staff_pkey                          | index | hospital_admin | staff        | permanent   | btree         | 16 kB      | 
+ public | uq_admission_open_bed               | index | hospital_admin | admission    | permanent   | btree         | 16 kB      | 
+ public | uq_admission_open_patient           | index | hospital_admin | admission    | permanent   | btree         | 16 kB      | 
+ public | ward_name_key                       | index | hospital_admin | ward         | permanent   | btree         | 16 kB      | 
+ public | ward_pkey                           | index | hospital_admin | ward         | permanent   | btree         | 16 kB      | 
+(43 rows)
+

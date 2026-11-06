@@ -1,0 +1,68 @@
+--- T1 CHECK: gender must be M or F
+BEGIN
+psql:/workspace/portfolio-1-database-design/constraint_tests.sql:12: ERROR:  new row for relation "patient" violates check constraint "patient_gender_check"
+DETAIL:  Failing row contains (53, Test, Patient, 1990-01-01, X, +2340000000001, null, null, 2026-11-07 00:28:13.757026+01).
+ROLLBACK
+--- T2 UNIQUE: two patients cannot share a phone number
+BEGIN
+psql:/workspace/portfolio-1-database-design/constraint_tests.sql:18: ERROR:  duplicate key value violates unique constraint "patient_phone_key"
+DETAIL:  Key (phone)=(+2348010104729) already exists.
+ROLLBACK
+--- T3 FOREIGN KEY: appointment for a patient that does not exist
+BEGIN
+ROLLBACK
+--- T4 TRIGGER: appointment doctor_id must be a doctor (staff 7 is a nurse)
+psql:/workspace/portfolio-1-database-design/constraint_tests.sql:24: ERROR:  insert or update on table "appointment" violates foreign key constraint "appointment_patient_id_fkey"
+DETAIL:  Key (patient_id)=(999999) is not present in table "patient".
+BEGIN
+psql:/workspace/portfolio-1-database-design/constraint_tests.sql:30: ERROR:  appointment.doctor_id must reference a doctor, staff 7 is nurse
+CONTEXT:  PL/pgSQL function check_staff_role() line 8 at RAISE
+ROLLBACK
+--- T5 ON DELETE RESTRICT: cannot delete a patient who has medical records
+BEGIN
+psql:/workspace/portfolio-1-database-design/constraint_tests.sql:35: ERROR:  update or delete on table "patient" violates foreign key constraint "appointment_patient_id_fkey" on table "appointment"
+DETAIL:  Key (patient_id)=(50) is still referenced from table "appointment".
+ROLLBACK
+--- T6 PARTIAL UNIQUE: a bed already holding a patient cannot be reused
+BEGIN
+psql:/workspace/portfolio-1-database-design/constraint_tests.sql:41: ERROR:  duplicate key value violates unique constraint "uq_admission_open_bed"
+DETAIL:  Key (ward_id, bed_number)=(1, 4) already exists.
+ROLLBACK
+--- T7 TRIGGER: bed number must exist in the ward
+BEGIN
+psql:/workspace/portfolio-1-database-design/constraint_tests.sql:46: ERROR:  Ward 2 only has 8 beds, bed 99 does not exist
+CONTEXT:  PL/pgSQL function check_bed_in_ward() line 7 at RAISE
+ROLLBACK
+--- T8 CHECK: discharge cannot be before admission
+BEGIN
+psql:/workspace/portfolio-1-database-design/constraint_tests.sql:52: ERROR:  new row for relation "admission" violates check constraint "admission_discharge_after_admit"
+DETAIL:  Failing row contains (1, 18, 1, 1, 2026-10-23 15:41:39.905538+01, 2026-10-23 14:41:39.905538+01).
+ROLLBACK
+--- T9 CHECK: medication stock cannot go negative
+BEGIN
+psql:/workspace/portfolio-1-database-design/constraint_tests.sql:57: ERROR:  new row for relation "medication" violates check constraint "medication_stock_quantity_check"
+DETAIL:  Failing row contains (1, Paracetamol 500mg, Emzor Pharmaceuticals, 50.00, -8000, 300).
+ROLLBACK
+--- T10 TRIGGER: payment cannot exceed the invoice total
+BEGIN
+psql:/workspace/portfolio-1-database-design/constraint_tests.sql:63: ERROR:  Payment rejected: invoice 5 total is 8300.00, payments would reach 8301.00
+CONTEXT:  PL/pgSQL function apply_payment() line 14 at RAISE
+ROLLBACK
+--- T11 CASCADE: deleting an unpaid invoice removes its items (and nothing else)
+BEGIN
+DELETE 1
+ items_before | items_after 
+--------------+-------------
+            2 |           0
+(1 row)
+
+ROLLBACK
+--- T12 TRIGGER: invoice total follows its items
+BEGIN
+INSERT 0 1
+ before_total | after_total 
+--------------+-------------
+     47000.00 |    49500.00
+(1 row)
+
+ROLLBACK
