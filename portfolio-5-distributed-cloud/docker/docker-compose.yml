@@ -1,0 +1,45 @@
+# Three-node MongoDB replica set "hospitalRS" for Portfolio 5.
+#
+#   cd portfolio-5-distributed-cloud/docker && docker compose up -d
+#   ../replica_demo.sh init
+#
+# Each member listens on its own port both inside and outside Docker, so the
+# member names in the replica set config (mongo1:27018 etc.) work from inside
+# the Docker network. From the Mac (e.g. MongoDB Compass) add
+# "127.0.0.1 mongo1 mongo2 mongo3" to /etc/hosts so the same names resolve.
+#
+# Authentication is off: a secured replica set also needs a shared keyfile for
+# internal member authentication, which adds setup without changing what the
+# demo shows. This set is bound to the local machine only.
+
+name: hospital_rs
+
+services:
+  mongo1:
+    image: mongo:7
+    container_name: mongo1
+    hostname: mongo1
+    command: ["--replSet", "hospitalRS", "--bind_ip_all", "--port", "27018"]
+    ports: ["127.0.0.1:27018:27018"]
+    volumes: ["mongo1_data:/data/db", "../../:/workspace:ro"]
+
+  mongo2:
+    image: mongo:7
+    container_name: mongo2
+    hostname: mongo2
+    command: ["--replSet", "hospitalRS", "--bind_ip_all", "--port", "27019"]
+    ports: ["127.0.0.1:27019:27019"]
+    volumes: ["mongo2_data:/data/db", "../../:/workspace:ro"]
+
+  mongo3:
+    image: mongo:7
+    container_name: mongo3
+    hostname: mongo3
+    command: ["--replSet", "hospitalRS", "--bind_ip_all", "--port", "27020"]
+    ports: ["127.0.0.1:27020:27020"]
+    volumes: ["mongo3_data:/data/db", "../../:/workspace:ro"]
+
+volumes:
+  mongo1_data:
+  mongo2_data:
+  mongo3_data:
