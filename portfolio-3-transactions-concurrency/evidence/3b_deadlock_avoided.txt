@@ -1,0 +1,71 @@
+# 03_deadlock.sql scenario 3b (deadlock_avoided), run 2026-11-07 00:48:45 WAT
+
+## Session A
+
+[A] FIX: lock every row needed up front, in a fixed order (lowest patient_id first)
+BEGIN;
+BEGIN
+SELECT patient_id, to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS a_locked_at
+FROM patient WHERE patient_id IN (1, 2) ORDER BY patient_id FOR UPDATE;
+ patient_id | a_locked_at  
+------------+--------------
+          1 | 00:48:44.880
+          2 | 00:48:44.880
+(2 rows)
+
+SELECT pg_sleep(1);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+UPDATE patient SET address = address WHERE patient_id = 1;
+UPDATE 1
+UPDATE patient SET address = address WHERE patient_id = 2;
+UPDATE 1
+COMMIT;
+COMMIT
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, 'A finished' AS event;
+      at      |   event    
+--------------+------------
+ 00:48:45.891 | A finished
+(1 row)
+
+
+## Session B (started 0.5 s after Session A)
+
+[B] FIX: same lock order, even though B logically starts with patient 2
+BEGIN;
+BEGIN
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS b_requests_locks;
+ b_requests_locks 
+------------------
+ 00:48:45.382
+(1 row)
+
+SELECT patient_id, to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS b_locked_at
+FROM patient WHERE patient_id IN (1, 2) ORDER BY patient_id FOR UPDATE;
+ patient_id | b_locked_at  
+------------+--------------
+          1 | 00:48:45.891
+          2 | 00:48:45.891
+(2 rows)
+
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS b_got_locks;
+ b_got_locks  
+--------------
+ 00:48:45.891
+(1 row)
+
+UPDATE patient SET address = address WHERE patient_id = 2;
+UPDATE 1
+UPDATE patient SET address = address WHERE patient_id = 1;
+UPDATE 1
+COMMIT;
+COMMIT
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, 'B finished, no deadlock' AS event;
+      at      |          event          
+--------------+-------------------------
+ 00:48:45.897 | B finished, no deadlock
+(1 row)
+

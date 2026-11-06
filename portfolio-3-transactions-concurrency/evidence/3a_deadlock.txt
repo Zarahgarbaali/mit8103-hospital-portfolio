@@ -1,0 +1,90 @@
+# 03_deadlock.sql scenario 3a (deadlock), run 2026-11-07 00:48:44 WAT
+
+## Session A
+
+[A] lock patient 1, then patient 2
+BEGIN;
+BEGIN
+UPDATE patient SET address = address WHERE patient_id = 1
+RETURNING patient_id, to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS a_locked_at;
+ patient_id | a_locked_at  
+------------+--------------
+          1 | 00:48:42.653
+(1 row)
+
+UPDATE 1
+SELECT pg_sleep(1);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS a_requests_patient_2;
+ a_requests_patient_2 
+----------------------
+ 00:48:43.659
+(1 row)
+
+UPDATE patient SET address = address WHERE patient_id = 2
+RETURNING patient_id, to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS a_locked_at;
+psql:/tmp/s3aa.sql:8: ERROR:  deadlock detected
+DETAIL:  Process 3191 waits for ShareLock on transaction 1079; blocked by process 3205.
+Process 3205 waits for ShareLock on transaction 1078; blocked by process 3191.
+HINT:  See server log for query details.
+CONTEXT:  while updating tuple (0,2) in relation "patient"
+COMMIT;
+ROLLBACK
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, 'A finished' AS event;
+      at      |   event    
+--------------+------------
+ 00:48:44.663 | A finished
+(1 row)
+
+
+## Session B (started 0.5 s after Session A)
+
+[B] lock patient 2, then patient 1 (opposite order)
+BEGIN;
+BEGIN
+UPDATE patient SET address = address WHERE patient_id = 2
+RETURNING patient_id, to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS b_locked_at;
+ patient_id | b_locked_at  
+------------+--------------
+          2 | 00:48:43.147
+(1 row)
+
+UPDATE 1
+SELECT pg_sleep(1);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS b_requests_patient_1;
+ b_requests_patient_1 
+----------------------
+ 00:48:44.157
+(1 row)
+
+UPDATE patient SET address = address WHERE patient_id = 1
+RETURNING patient_id, to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS b_locked_at;
+ patient_id | b_locked_at  
+------------+--------------
+          1 | 00:48:44.663
+(1 row)
+
+UPDATE 1
+COMMIT;
+COMMIT
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, 'B finished' AS event;
+      at      |   event    
+--------------+------------
+ 00:48:44.665 | B finished
+(1 row)
+
+SHOW deadlock_timeout;
+ deadlock_timeout 
+------------------
+ 1s
+(1 row)
+
