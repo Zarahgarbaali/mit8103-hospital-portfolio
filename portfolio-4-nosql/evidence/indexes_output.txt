@@ -1,0 +1,9 @@
+patient_records indexes:
+  _id_  {"_id":1}
+  uq_patient_id  {"patient_id":1}  unique
+  idx_visits_date  {"visits.date":-1}
+  idx_allergies  {"allergies":1}
+lab_results indexes:
+  _id_  {"_id":1}
+  idx_patient_ordered_at  {"patient_id":1,"ordered_at":-1}
+  idx_test_type  {"test_type":1}
