@@ -29,5 +29,31 @@ CREATE INDEX IF NOT EXISTS idx_appointment_scheduled_for
 CREATE INDEX IF NOT EXISTS idx_diagnosis_icd_code
     ON diagnosis(icd_code);
 
+-- ---------------------------------------------------------------------------
+-- Partial indexes: only the rows a hot query actually asks for
+-- ---------------------------------------------------------------------------
 
-ANALYZE prescription, invoice, appointment, diagnosis;
+-- Q5: pending lab orders are ~0.5% of lab_order. The index holds only those
+-- rows, so it stays tiny however many completed orders pile up. status is not
+-- a key column because the WHERE clause already fixes it to 'pending'.
+CREATE INDEX IF NOT EXISTS idx_lab_order_pending
+    ON lab_order(ordered_at) WHERE status = 'pending';
+
+-- Q3 and the revenue materialised view: every invoice has exactly one
+-- consultation line. As a UNIQUE partial index this both enforces that rule
+-- (so revenue can never be double counted) and gives the join a narrow,
+-- index-only path from invoice to its appointment.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_invoice_item_consultation
+    ON invoice_item(invoice_id) INCLUDE (reference_id) WHERE item_type = 'consultation';
+
+-- Q9: only unpaid and partially paid invoices carry a balance (~20% of rows).
+CREATE INDEX IF NOT EXISTS idx_invoice_open_balance
+    ON invoice(patient_id) INCLUDE (total_amount)
+    WHERE status IN ('unpaid', 'partially_paid');
+
+-- Q6 needs no new index: uq_admission_open_bed and uq_admission_open_patient
+-- (portfolio-1 schema.sql) are already partial indexes on
+-- WHERE discharged_at IS NULL, and the baseline plan uses one of them. A
+-- separate (ward_id) WHERE discharged_at IS NULL index would duplicate them.
+
+VACUUM ANALYZE prescription, invoice, invoice_item, appointment, diagnosis, lab_order;
