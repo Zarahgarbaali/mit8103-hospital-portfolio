@@ -1,0 +1,493 @@
+
+==============================================================================
+Q1. Open a patient's full chart by patient_id (one read, no joins)
+==============================================================================
+{
+  patient_id: 1,
+  full_name: 'Amina Eze',
+  dob: ISODate('2000-11-07T00:00:00.000Z'),
+  gender: 'F',
+  blood_group: 'A+',
+  contact: {
+    phone: '+2348010104729',
+    address: 'Plot 14, Asokoro, Abuja'
+  },
+  allergies: [
+    'penicillin',
+    'sulfonamides'
+  ],
+  chronic_conditions: [
+    'asthma'
+  ],
+  visits: [
+    {
+      visit_id: 'v-1-01',
+      date: ISODate('2026-07-06T13:00:00.000Z'),
+      doctor: {
+        staff_id: 1,
+        name: 'Dr. Chinedu Okafor',
+        department: 'General Medicine'
+      },
+      reason: 'Fever and abdominal pain',
+      vitals: {
+        bp: '131/94',
+        temp_c: 36.4,
+        pulse: 90,
+        weight_kg: 71.2
+      },
+      diagnosis: {
+        icd: 'A01.0',
+        notes: 'Typhoid fever'
+      },
+      prescriptions: [
+        {
+          drug: 'Ciprofloxacin 500mg',
+          dosage: '500mg twice daily',
+          duration_days: 7
+        }
+      ]
+    },
+    {
+      visit_id: 'v-1-02',
+      date: ISODate('2026-07-29T13:00:00.000Z'),
+      doctor: {
+        staff_id: 1,
+        name: 'Dr. Chinedu Okafor',
+        department: 'General Medicine'
+      },
+      reason: 'Fever and headache',
+      vitals: {
+        bp: '141/72',
+        temp_c: 37.1,
+        pulse: 97,
+        weight_kg: 73.7
+      },
+      diagnosis: {
+        icd: 'B54',
+        notes: 'Uncomplicated malaria, MP positive'
+      },
+      prescriptions: [
+        {
+          drug: 'Artemether/Lumefantrine 80/480mg',
+          dosage: '1 tablet twice daily',
+          duration_days: 3
+        },
+        {
+          drug: 'Paracetamol 500mg',
+          dosage: '1g three times daily',
+          duration_days: 3
+        }
+      ]
+    },
+    {
+      visit_id: 'v-1-03',
+      date: ISODate('2026-08-04T10:30:00.000Z'),
+      doctor: {
+        staff_id: 5,
+        name: 'Dr. Ibrahim Musa',
+        department: 'Surgery'
+      },
+      reason: 'Persistent cough',
+      vitals: {
+        bp: '153/82',
+        temp_c: 36.9,
+        pulse: 104,
+        weight_kg: 73.3
+      },
+      diagnosis: {
+        icd: 'J00',
+        notes: 'Acute nasopharyngitis (common cold)'
+      },
+      prescriptions: [
+        {
+          drug: 'Paracetamol 500mg',
+          dosage: '1g three times daily',
+          duration_days: 3
+        }
+      ]
+    },
+    {
+      visit_id: 'v-1-04',
+      date: ISODate('2026-10-04T15:30:00.000Z'),
+      doctor: {
+        staff_id: 4,
+        name: 'Dr. Ngozi Eze',
+        department: 'Obstetrics and Gynaecology'
+      },
+      reason: 'Antenatal visit',
+      vitals: {
+        bp: '106/71',
+        temp_c: 38.7,
+        pulse: 84,
+        weight_kg: 73.5,
+        gestational_age_weeks: 19
+      },
+      diagnosis: {
+        icd: 'B54',
+        notes: 'Uncomplicated malaria, MP positive'
+      },
+      prescriptions: [
+        {
+          drug: 'Artemether/Lumefantrine 80/480mg',
+          dosage: '1 tablet twice daily',
+          duration_days: 3
+        },
+        {
+          drug: 'Paracetamol 500mg',
+          dosage: '1g three times daily',
+          duration_days: 3
+        }
+      ]
+    }
+  ],
+  created_at: ISODate('2026-04-10T23:54:11.199Z'),
+  updated_at: ISODate('2026-10-04T15:30:00.000Z'),
+  insurance: {
+    provider: 'NHIA',
+    member_no: 'M-100037'
+  }
+}
+plan: FETCH <- IXSCAN(uq_patient_id) | keys examined: 1, docs examined: 1, returned: 1
+
+==============================================================================
+Q2. Append a new visit with $push (atomic single-document update)
+==============================================================================
+{
+  matched: 1,
+  modified: 1
+}
+{
+  full_name: 'Amina Eze',
+  visit_count: 5,
+  latest_visit: {
+    visit_id: 'v-1-demo',
+    date: ISODate('2026-11-06T23:54:12.002Z'),
+    doctor: {
+      staff_id: 1,
+      name: 'Dr. Chinedu Okafor',
+      department: 'General Medicine'
+    },
+    reason: 'Fever and headache',
+    vitals: {
+      bp: '122/80',
+      temp_c: 38.9,
+      pulse: 98,
+      weight_kg: 64
+    },
+    diagnosis: {
+      icd: 'B54',
+      notes: 'Uncomplicated malaria, MP positive'
+    },
+    prescriptions: [
+      {
+        drug: 'Artemether/Lumefantrine 80/480mg',
+        dosage: '1 tablet twice daily',
+        duration_days: 3
+      },
+      {
+        drug: 'Paracetamol 500mg',
+        dosage: '1g three times daily',
+        duration_days: 3
+      }
+    ]
+  }
+}
+
+==============================================================================
+Q3. All patients allergic to penicillin (multikey index on an array)
+==============================================================================
+{
+  patient_id: 1,
+  full_name: 'Amina Eze',
+  contact: {
+    phone: '+2348010104729'
+  },
+  allergies: [
+    'penicillin',
+    'sulfonamides'
+  ]
+}
+{
+  patient_id: 5,
+  full_name: 'Chiamaka Mohammed',
+  contact: {
+    phone: '+2348010523645'
+  },
+  allergies: [
+    'penicillin',
+    'sulfonamides'
+  ]
+}
+{
+  patient_id: 6,
+  full_name: 'Olumide Adeleke',
+  contact: {
+    phone: '+2348010628374'
+  },
+  allergies: [
+    'penicillin'
+  ]
+}
+{
+  patient_id: 10,
+  full_name: 'Sadiq Chukwu',
+  contact: {
+    phone: '+2348011047290'
+  },
+  allergies: [
+    'penicillin',
+    'sulfonamides'
+  ]
+}
+{
+  patient_id: 14,
+  full_name: 'Obinna Abdullahi',
+  contact: {
+    phone: '+2348011466206'
+  },
+  allergies: [
+    'penicillin',
+    'sulfonamides'
+  ]
+}
+{
+  patient_id: 16,
+  full_name: 'Usman Ajayi',
+  contact: {
+    phone: '+2348011675664'
+  },
+  allergies: [
+    'penicillin',
+    'sulfonamides'
+  ]
+}
+{
+  patient_id: 18,
+  full_name: 'Adewale Ogunbiyi',
+  contact: {
+    phone: '+2348011885122'
+  },
+  allergies: [
+    'penicillin'
+  ]
+}
+plan: FETCH <- IXSCAN(idx_allergies) | keys examined: 7, docs examined: 7, returned: 7
+
+==============================================================================
+Q4. Aggregation: number of visits per doctor across all patients
+==============================================================================
+{
+  department: 'Surgery',
+  visits: 15,
+  doctor: 'Dr. Ibrahim Musa',
+  distinct_patients: 11
+}
+{
+  department: 'Surgery',
+  visits: 14,
+  doctor: 'Dr. Emeka Nwosu',
+  distinct_patients: 9
+}
+{
+  department: 'General Medicine',
+  visits: 10,
+  doctor: 'Dr. Chinedu Okafor',
+  distinct_patients: 8
+}
+{
+  department: 'Obstetrics and Gynaecology',
+  visits: 10,
+  doctor: 'Dr. Ngozi Eze',
+  distinct_patients: 7
+}
+{
+  department: 'Paediatrics',
+  visits: 6,
+  doctor: 'Dr. Oluwaseun Adeyemi',
+  distinct_patients: 2
+}
+{
+  department: 'General Medicine',
+  visits: 3,
+  doctor: 'Dr. Fatima Bello',
+  distinct_patients: 3
+}
+
+==============================================================================
+Q5. Aggregation: average haemoglobin across FBC results in the last 30 days
+==============================================================================
+{
+  min_hb: 10.8,
+  max_hb: 16.8,
+  below_12: 3,
+  n: 10,
+  avg_hb: 13.38
+}
+
+==============================================================================
+Q6. $lookup: each patient's most recent lab test with the patient's name
+==============================================================================
+{
+  patient_id: 11,
+  full_name: 'Halima Uche',
+  test_type: 'full_blood_count',
+  ordered_at: ISODate('2026-11-06T21:54:11.199Z'),
+  status: 'pending'
+}
+{
+  patient_id: 4,
+  full_name: 'Abubakar Balogun',
+  test_type: 'lipid_profile',
+  ordered_at: ISODate('2026-11-06T17:54:11.199Z'),
+  status: 'pending'
+}
+{
+  patient_id: 7,
+  full_name: 'Zainab Oyelaran',
+  test_type: 'fasting_blood_sugar',
+  ordered_at: ISODate('2026-11-05T17:54:11.199Z'),
+  status: 'complete',
+  results: {
+    glucose_mmol_l: 5.6
+  }
+}
+{
+  patient_id: 5,
+  full_name: 'Chiamaka Mohammed',
+  test_type: 'lipid_profile',
+  ordered_at: ISODate('2026-11-05T16:54:11.199Z'),
+  status: 'complete',
+  results: {
+    total_cholesterol: 6.4,
+    hdl: 1.1,
+    ldl: 2.2,
+    triglycerides: 1.1
+  }
+}
+{
+  patient_id: 1,
+  full_name: 'Amina Eze',
+  test_type: 'full_blood_count',
+  ordered_at: ISODate('2026-11-02T17:54:11.199Z'),
+  status: 'complete',
+  results: {
+    wbc: 4.4,
+    rbc: 4.9,
+    hb: 13.3,
+    platelets: 299
+  }
+}
+{
+  patient_id: 19,
+  full_name: 'Temitope Onyeka',
+  test_type: 'lipid_profile',
+  ordered_at: ISODate('2026-11-01T21:54:11.199Z'),
+  status: 'complete',
+  results: {
+    total_cholesterol: 7.1,
+    hdl: 1.9,
+    ldl: 3.6,
+    triglycerides: 1.7
+  }
+}
+{
+  patient_id: 15,
+  full_name: 'Nkechi Bello',
+  test_type: 'full_blood_count',
+  ordered_at: ISODate('2026-10-27T21:54:11.199Z'),
+  status: 'complete',
+  results: {
+    wbc: 9.6,
+    rbc: 4.5,
+    hb: 10.9,
+    platelets: 313
+  }
+}
+{
+  patient_id: 3,
+  full_name: 'Folasade Umar',
+  test_type: 'full_blood_count',
+  ordered_at: ISODate('2026-10-25T19:54:11.199Z'),
+  status: 'complete',
+  results: {
+    wbc: 10.1,
+    rbc: 5,
+    hb: 12.5,
+    platelets: 419
+  }
+}
+{
+  patient_id: 12,
+  full_name: 'Babatunde Lawal',
+  test_type: 'full_blood_count',
+  ordered_at: ISODate('2026-10-25T17:54:11.199Z'),
+  status: 'complete',
+  results: {
+    wbc: 5.9,
+    rbc: 4.8,
+    hb: 15.3,
+    platelets: 223
+  }
+}
+{
+  patient_id: 18,
+  full_name: 'Adewale Ogunbiyi',
+  test_type: 'full_blood_count',
+  ordered_at: ISODate('2026-10-22T19:54:11.199Z'),
+  status: 'complete',
+  results: {
+    wbc: 11.7,
+    rbc: 4.7,
+    hb: 16.5,
+    platelets: 366
+  }
+}
+
+==============================================================================
+Bonus. Same flexible collection, different result shapes per test type
+==============================================================================
+{
+  n: 11,
+  test_type: 'fasting_blood_sugar',
+  fields: [
+    'glucose_mmol_l'
+  ]
+}
+{
+  n: 15,
+  test_type: 'full_blood_count',
+  fields: [
+    'wbc',
+    'rbc',
+    'hb',
+    'platelets'
+  ]
+}
+{
+  n: 8,
+  test_type: 'lipid_profile',
+  fields: [
+    'total_cholesterol',
+    'hdl',
+    'ldl',
+    'triglycerides'
+  ]
+}
+{
+  n: 8,
+  test_type: 'malaria_parasite',
+  fields: [
+    'mp'
+  ]
+}
+{
+  n: 7,
+  test_type: 'urinalysis',
+  fields: [
+    'protein',
+    'glucose',
+    'nitrite',
+    'leukocytes',
+    'ph'
+  ]
+}
