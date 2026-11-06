@@ -1,0 +1,151 @@
+SELECT invoice_id, total_amount, status
+FROM invoice
+WHERE status = 'unpaid'
+ORDER BY invoice_id
+LIMIT 1 
+--- 1a. Before: the invoice is unpaid
+SELECT invoice_id, total_amount, status FROM invoice WHERE invoice_id = 15;
+ invoice_id | total_amount | status 
+------------+--------------+--------
+         15 |     48300.00 | unpaid
+(1 row)
+
+BEGIN;
+BEGIN
+INSERT INTO payment (invoice_id, amount, method)
+VALUES (15, 48300.00, 'transfer')
+RETURNING payment_id, invoice_id, amount, method;
+ payment_id | invoice_id |  amount  |  method  
+------------+------------+----------+----------
+     155507 |         15 | 48300.00 | transfer
+(1 row)
+
+INSERT 0 1
+INSERT INTO audit_log (table_name, row_id, action, new_data)
+VALUES ('invoice', 15, 'payment', jsonb_build_object('amount', 48300.00, 'method', 'transfer'));
+INSERT 0 1
+COMMIT;
+COMMIT
+--- 1b. After COMMIT: payment stored, invoice paid, audit row written
+SELECT invoice_id, total_amount, status FROM invoice WHERE invoice_id = 15;
+ invoice_id | total_amount | status 
+------------+--------------+--------
+         15 |     48300.00 | paid
+(1 row)
+
+SELECT count(*) AS payments_for_invoice FROM payment WHERE invoice_id = 15;
+ payments_for_invoice 
+----------------------
+                    1
+(1 row)
+
+SELECT table_name, row_id, action, new_data FROM audit_log
+WHERE table_name = 'invoice' AND row_id = 15;
+ table_name | row_id | action  |                  new_data                  
+------------+--------+---------+--------------------------------------------
+ invoice    |     15 | payment | {"amount": 48300.00, "method": "transfer"}
+(1 row)
+
+--- 2a. Before: Tramadol stock
+SELECT medication_id, name, stock_quantity FROM medication WHERE name = 'Tramadol 50mg';
+ medication_id |     name      | stock_quantity 
+---------------+---------------+----------------
+            29 | Tramadol 50mg |              3
+(1 row)
+
+SELECT count(*) AS dispense_audit_rows FROM audit_log WHERE action = 'dispense';
+ dispense_audit_rows 
+---------------------
+                   0
+(1 row)
+
+BEGIN;
+BEGIN
+INSERT INTO audit_log (table_name, row_id, action, new_data)
+SELECT 'medication', medication_id, 'dispense', jsonb_build_object('quantity', 10)
+FROM medication WHERE name = 'Tramadol 50mg';
+INSERT 0 1
+UPDATE medication
+SET stock_quantity = stock_quantity - 10
+WHERE name = 'Tramadol 50mg';
+psql:/workspace/portfolio-3-transactions-concurrency/01_commit_rollback.sql:61: ERROR:  new row for relation "medication" violates check constraint "medication_stock_quantity_check"
+DETAIL:  Failing row contains (29, Tramadol 50mg, Swiss Pharma Nigeria, 900.00, -7, 30).
+SELECT 'this will not run' AS note;
+psql:/workspace/portfolio-3-transactions-concurrency/01_commit_rollback.sql:64: ERROR:  current transaction is aborted, commands ignored until end of transaction block
+ROLLBACK;
+ROLLBACK
+--- 2b. After ROLLBACK: stock unchanged, no audit row
+SELECT medication_id, name, stock_quantity FROM medication WHERE name = 'Tramadol 50mg';
+ medication_id |     name      | stock_quantity 
+---------------+---------------+----------------
+            29 | Tramadol 50mg |              3
+(1 row)
+
+SELECT count(*) AS dispense_audit_rows FROM audit_log WHERE action = 'dispense';
+ dispense_audit_rows 
+---------------------
+                   0
+(1 row)
+
+--- 3a. Before: a fresh invoice for patient 3
+BEGIN;
+BEGIN
+INSERT INTO invoice (patient_id) VALUES (3) RETURNING invoice_id AS new_invoice_id 
+INSERT 0 1
+INSERT INTO invoice_item (invoice_id, description, item_type, amount)
+VALUES (172799, 'Consultation - General Medicine', 'consultation', 10000);
+INSERT 0 1
+SAVEPOINT before_lab_charge;
+SAVEPOINT
+INSERT INTO invoice_item (invoice_id, description, item_type, amount)
+VALUES (172799, 'Lab - Full Blood Count', 'lab_test', -6000);
+psql:/workspace/portfolio-3-transactions-concurrency/01_commit_rollback.sql:88: ERROR:  new row for relation "invoice_item" violates check constraint "invoice_item_amount_check"
+DETAIL:  Failing row contains (345588, 172799, Lab - Full Blood Count, lab_test, null, -6000.00).
+ROLLBACK TO SAVEPOINT before_lab_charge;
+ROLLBACK
+INSERT INTO invoice_item (invoice_id, description, item_type, amount)
+VALUES (172799, 'Lab - Full Blood Count', 'lab_test', 6000);
+INSERT 0 1
+COMMIT;
+COMMIT
+--- 3b. After COMMIT: two valid lines, total maintained by the trigger
+SELECT invoice_id, total_amount, status FROM invoice WHERE invoice_id = 172799;
+ invoice_id | total_amount | status 
+------------+--------------+--------
+     172799 |     16000.00 | unpaid
+(1 row)
+
+SELECT description, item_type, amount FROM invoice_item WHERE invoice_id = 172799 ORDER BY invoice_item_id;
+           description           |  item_type   |  amount  
+---------------------------------+--------------+----------
+ Consultation - General Medicine | consultation | 10000.00
+ Lab - Full Blood Count          | lab_test     |  6000.00
+(2 rows)
+
+--- 4a. Before
+SELECT invoice_id, total_amount, status,
+       (SELECT COALESCE(sum(amount), 0) FROM payment p WHERE p.invoice_id = i.invoice_id) AS paid
+FROM invoice i WHERE invoice_id = 172799;
+ invoice_id | total_amount | status | paid 
+------------+--------------+--------+------
+     172799 |     16000.00 | unpaid |    0
+(1 row)
+
+BEGIN;
+BEGIN
+INSERT INTO payment (invoice_id, amount, method) VALUES (172799, 10000, 'cash');
+INSERT 0 1
+INSERT INTO payment (invoice_id, amount, method) VALUES (172799, 10000, 'card');
+psql:/workspace/portfolio-3-transactions-concurrency/01_commit_rollback.sql:113: ERROR:  Payment rejected: invoice 172799 total is 16000.00, payments would reach 20000.00
+CONTEXT:  PL/pgSQL function apply_payment() line 14 at RAISE
+COMMIT;
+ROLLBACK
+--- 4b. After: COMMIT on an aborted transaction is a ROLLBACK; nothing was paid
+SELECT invoice_id, total_amount, status,
+       (SELECT COALESCE(sum(amount), 0) FROM payment p WHERE p.invoice_id = i.invoice_id) AS paid
+FROM invoice i WHERE invoice_id = 172799;
+ invoice_id | total_amount | status | paid 
+------------+--------------+--------+------
+     172799 |     16000.00 | unpaid |    0
+(1 row)
+
