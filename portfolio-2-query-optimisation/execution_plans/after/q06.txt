@@ -1,0 +1,37 @@
+-- Q6 (after optimisation indexes), captured 2026-11-07 00:39 WAT
+-- execution times of 3 runs (ms): 0.138 0.105 0.082
+
+-- Business reason: the bed manager needs live occupancy before accepting a transfer.
+SELECT w.ward_id,
+       w.name,
+       w.total_beds,
+       count(a.admission_id)                AS occupied,
+       w.total_beds - count(a.admission_id) AS free,
+       round(100.0 * count(a.admission_id) / w.total_beds, 1) AS occupancy_pct
+FROM ward w
+LEFT JOIN admission a ON a.ward_id = w.ward_id AND a.discharged_at IS NULL
+GROUP BY w.ward_id, w.name, w.total_beds
+ORDER BY w.ward_id;
+
+Sort  (cost=13.57..13.58 rows=4 width=71) (actual time=0.041..0.043 rows=4 loops=1)
+  Sort Key: w.ward_id
+  Sort Method: quicksort  Memory: 25kB
+  Buffers: shared hit=6
+  ->  HashAggregate  (cost=13.43..13.53 rows=4 width=71) (actual time=0.030..0.032 rows=4 loops=1)
+        Group Key: w.ward_id
+        Batches: 1  Memory Usage: 24kB
+        Buffers: shared hit=3
+        ->  Hash Right Join  (cost=1.23..13.39 rows=8 width=31) (actual time=0.020..0.024 rows=8 loops=1)
+              Hash Cond: (a.ward_id = w.ward_id)
+              Buffers: shared hit=3
+              ->  Index Scan using uq_admission_open_patient on admission a  (cost=0.14..12.25 rows=8 width=12) (actual time=0.006..0.007 rows=8 loops=1)
+                    Buffers: shared hit=2
+              ->  Hash  (cost=1.04..1.04 rows=4 width=23) (actual time=0.007..0.007 rows=4 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                    Buffers: shared hit=1
+                    ->  Seq Scan on ward w  (cost=0.00..1.04 rows=4 width=23) (actual time=0.003..0.003 rows=4 loops=1)
+                          Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=230
+Planning Time: 0.373 ms
+Execution Time: 0.082 ms

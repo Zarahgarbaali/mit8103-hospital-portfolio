@@ -1,0 +1,45 @@
+-- Q4 (after optimisation indexes), captured 2026-11-07 00:39 WAT
+-- execution times of 3 runs (ms): 41.184 39.594 36.952
+
+-- Business reason: frequent attenders are flagged for a care-coordination review.
+SELECT p.patient_id,
+       p.first_name,
+       p.last_name,
+       count(*) AS appointments_6m
+FROM appointment a
+JOIN patient p ON p.patient_id = a.patient_id
+WHERE a.scheduled_for >= now() - interval '6 months'
+  AND a.scheduled_for <  now()
+  AND a.status <> 'cancelled'
+GROUP BY p.patient_id, p.first_name, p.last_name
+HAVING count(*) > 3
+ORDER BY appointments_6m DESC, p.patient_id;
+
+Sort  (cost=5156.85..5173.56 rows=6683 width=28) (actual time=36.068..36.405 rows=8317 loops=1)
+  Sort Key: (count(*)) DESC, p.patient_id
+  Sort Method: quicksort  Memory: 839kB
+  Buffers: shared hit=666
+  ->  HashAggregate  (cost=4481.64..4732.27 rows=6683 width=28) (actual time=31.416..33.258 rows=8317 loops=1)
+        Group Key: p.patient_id
+        Filter: (count(*) > 3)
+        Batches: 1  Memory Usage: 2833kB
+        Rows Removed by Filter: 10971
+        Buffers: shared hit=663
+        ->  Hash Join  (cost=679.56..4157.50 rows=64828 width=20) (actual time=3.921..21.323 rows=65543 loops=1)
+              Hash Cond: (a.patient_id = p.patient_id)
+              Buffers: shared hit=663
+              ->  Index Only Scan using idx_appointment_scheduled_for on appointment a  (cost=0.43..3308.17 rows=64828 width=8) (actual time=0.015..6.843 rows=65543 loops=1)
+                    Index Cond: ((scheduled_for >= (now() - '6 mons'::interval)) AND (scheduled_for < now()))
+                    Filter: ((status)::text <> 'cancelled'::text)
+                    Rows Removed by Filter: 7363
+                    Heap Fetches: 0
+                    Buffers: shared hit=435
+              ->  Hash  (cost=428.50..428.50 rows=20050 width=20) (actual time=3.844..3.844 rows=20050 loops=1)
+                    Buckets: 32768  Batches: 1  Memory Usage: 1292kB
+                    Buffers: shared hit=228
+                    ->  Seq Scan on patient p  (cost=0.00..428.50 rows=20050 width=20) (actual time=0.003..1.439 rows=20050 loops=1)
+                          Buffers: shared hit=228
+Planning:
+  Buffers: shared hit=240
+Planning Time: 0.430 ms
+Execution Time: 36.952 ms

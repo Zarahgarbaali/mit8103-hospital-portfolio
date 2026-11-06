@@ -1,0 +1,57 @@
+-- Q5 (after optimisation indexes), captured 2026-11-07 00:39 WAT
+-- execution times of 3 runs (ms): 6.042 5.232 14.085
+
+-- Business reason: the lab manager chases test orders that have waited over 24 hours.
+SELECT lo.lab_order_id,
+       p.first_name || ' ' || p.last_name   AS patient,
+       lt.name                              AS test,
+       'Dr. ' || s.first_name || ' ' || s.last_name AS ordered_by,
+       lo.ordered_at,
+       date_trunc('minute', now() - lo.ordered_at) AS waiting
+FROM lab_order lo
+JOIN patient  p  ON p.patient_id = lo.patient_id
+JOIN lab_test lt ON lt.lab_test_id = lo.lab_test_id
+JOIN staff    s  ON s.staff_id = lo.ordered_by
+WHERE lo.status = 'pending'
+  AND lo.ordered_at < now() - interval '24 hours'
+ORDER BY lo.ordered_at;
+
+Sort  (cost=1606.19..1607.44 rows=500 width=117) (actual time=13.986..14.002 rows=325 loops=1)
+  Sort Key: lo.ordered_at
+  Sort Method: quicksort  Memory: 60kB
+  Buffers: shared hit=503
+  ->  Hash Join  (cost=702.97..1583.77 rows=500 width=117) (actual time=12.985..13.891 rows=325 loops=1)
+        Hash Cond: (lo.ordered_by = s.staff_id)
+        Buffers: shared hit=500
+        ->  Hash Join  (cost=700.73..1570.12 rows=500 width=57) (actual time=12.959..13.768 rows=325 loops=1)
+              Hash Cond: (lo.lab_test_id = lt.lab_test_id)
+              Buffers: shared hit=499
+              ->  Hash Join  (cost=699.28..1567.08 rows=500 width=40) (actual time=12.925..13.695 rows=325 loops=1)
+                    Hash Cond: (lo.patient_id = p.patient_id)
+                    Buffers: shared hit=498
+                    ->  Bitmap Heap Scan on lab_order lo  (cost=20.15..886.64 rows=500 width=36) (actual time=0.052..0.719 rows=325 loops=1)
+                          Recheck Cond: ((ordered_at < (now() - '24:00:00'::interval)) AND ((status)::text = 'pending'::text))
+                          Heap Blocks: exact=268
+                          Buffers: shared hit=270
+                          ->  Bitmap Index Scan on idx_lab_order_pending  (cost=0.00..20.03 rows=500 width=0) (actual time=0.029..0.029 rows=325 loops=1)
+                                Index Cond: (ordered_at < (now() - '24:00:00'::interval))
+                                Buffers: shared hit=2
+                    ->  Hash  (cost=428.50..428.50 rows=20050 width=20) (actual time=12.816..12.816 rows=20050 loops=1)
+                          Buckets: 32768  Batches: 1  Memory Usage: 1353kB
+                          Buffers: shared hit=228
+                          ->  Seq Scan on patient p  (cost=0.00..428.50 rows=20050 width=20) (actual time=0.002..1.864 rows=20050 loops=1)
+                                Buffers: shared hit=228
+              ->  Hash  (cost=1.20..1.20 rows=20 width=25) (actual time=0.027..0.027 rows=20 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                    Buffers: shared hit=1
+                    ->  Seq Scan on lab_test lt  (cost=0.00..1.20 rows=20 width=25) (actual time=0.001..0.003 rows=20 loops=1)
+                          Buffers: shared hit=1
+        ->  Hash  (cost=1.55..1.55 rows=55 width=20) (actual time=0.015..0.016 rows=55 loops=1)
+              Buckets: 1024  Batches: 1  Memory Usage: 12kB
+              Buffers: shared hit=1
+              ->  Seq Scan on staff s  (cost=0.00..1.55 rows=55 width=20) (actual time=0.003..0.007 rows=55 loops=1)
+                    Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=504
+Planning Time: 0.722 ms
+Execution Time: 14.085 ms

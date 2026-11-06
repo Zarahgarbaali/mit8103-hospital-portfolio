@@ -1,0 +1,28 @@
+-- Q1 (after optimisation indexes), captured 2026-11-07 00:39 WAT
+-- execution times of 3 runs (ms): 0.069 0.070 0.167
+
+-- Business reason: the doctor's day list that a receptionist prints every morning.
+SELECT a.appointment_id,
+       a.scheduled_for,
+       p.first_name || ' ' || p.last_name AS patient,
+       a.status,
+       a.reason
+FROM appointment a
+JOIN patient p ON p.patient_id = a.patient_id
+WHERE a.doctor_id = 1
+  AND a.scheduled_for >= current_date - 17
+  AND a.scheduled_for <  current_date - 16
+ORDER BY a.scheduled_for;
+
+Nested Loop  (cost=0.72..115.41 rows=9 width=68) (actual time=0.072..0.096 rows=5 loops=1)
+  Buffers: shared hit=29
+  ->  Index Scan using idx_appointment_doctor_date on appointment a  (cost=0.43..40.62 rows=9 width=44) (actual time=0.064..0.075 rows=5 loops=1)
+        Index Cond: ((doctor_id = 1) AND (scheduled_for >= (CURRENT_DATE - 17)) AND (scheduled_for < (CURRENT_DATE - 16)))
+        Buffers: shared hit=14
+  ->  Index Scan using patient_pkey on patient p  (cost=0.29..8.30 rows=1 width=20) (actual time=0.003..0.003 rows=1 loops=5)
+        Index Cond: (patient_id = a.patient_id)
+        Buffers: shared hit=15
+Planning:
+  Buffers: shared hit=308
+Planning Time: 0.938 ms
+Execution Time: 0.167 ms

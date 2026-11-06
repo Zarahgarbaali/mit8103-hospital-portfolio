@@ -1,0 +1,64 @@
+-- Q7 (after optimisation indexes), captured 2026-11-07 00:39 WAT
+-- execution times of 3 runs (ms): 27.367 43.207 26.193
+
+-- Business reason: a malaria treatment audit lists patients diagnosed with B54
+-- who were prescribed Artemether/Lumefantrine for that diagnosis.
+SELECT DISTINCT p.patient_id,
+       p.first_name,
+       p.last_name,
+       d.recorded_at::date AS diagnosed_on
+FROM diagnosis    d
+JOIN prescription pr ON pr.diagnosis_id = d.diagnosis_id
+JOIN medication   m  ON m.medication_id = pr.medication_id
+JOIN appointment  a  ON a.appointment_id = d.appointment_id
+JOIN patient      p  ON p.patient_id = a.patient_id
+WHERE d.icd_code = 'B54'
+  AND m.name = 'Artemether/Lumefantrine 80/480mg'
+ORDER BY diagnosed_on DESC, p.patient_id;
+
+Unique  (cost=4389.81..4392.21 rows=192 width=24) (actual time=24.783..25.864 rows=5820 loops=1)
+  Buffers: shared hit=43921
+  ->  Sort  (cost=4389.81..4390.29 rows=192 width=24) (actual time=24.782..25.043 rows=5821 loops=1)
+        Sort Key: ((d.recorded_at)::date) DESC, p.patient_id, p.first_name, p.last_name
+        Sort Method: quicksort  Memory: 495kB
+        Buffers: shared hit=43921
+        ->  Nested Loop  (cost=1911.53..4382.53 rows=192 width=24) (actual time=4.565..23.154 rows=5821 loops=1)
+              Buffers: shared hit=43912
+              ->  Nested Loop  (cost=1911.24..4322.76 rows=192 width=16) (actual time=4.552..18.223 rows=5821 loops=1)
+                    Buffers: shared hit=26449
+                    ->  Hash Join  (cost=1910.82..3712.35 rows=192 width=16) (actual time=4.538..8.361 rows=5821 loops=1)
+                          Hash Cond: (pr.diagnosis_id = d.diagnosis_id)
+                          Buffers: shared hit=3165
+                          ->  Nested Loop  (cost=86.52..1872.94 rows=5760 width=8) (actual time=0.371..2.782 rows=5821 loops=1)
+                                Buffers: shared hit=1584
+                                ->  Seq Scan on medication m  (cost=0.00..1.38 rows=1 width=4) (actual time=0.006..0.010 rows=1 loops=1)
+                                      Filter: ((name)::text = 'Artemether/Lumefantrine 80/480mg'::text)
+                                      Rows Removed by Filter: 29
+                                      Buffers: shared hit=1
+                                ->  Bitmap Heap Scan on prescription pr  (cost=86.52..1796.43 rows=7513 width=12) (actual time=0.363..2.204 rows=5821 loops=1)
+                                      Recheck Cond: (medication_id = m.medication_id)
+                                      Heap Blocks: exact=1577
+                                      Buffers: shared hit=1583
+                                      ->  Bitmap Index Scan on idx_prescription_medication  (cost=0.00..84.64 rows=7513 width=0) (actual time=0.237..0.238 rows=5821 loops=1)
+                                            Index Cond: (medication_id = m.medication_id)
+                                            Buffers: shared hit=6
+                          ->  Hash  (cost=1752.16..1752.16 rows=5771 width=24) (actual time=4.138..4.139 rows=5821 loops=1)
+                                Buckets: 8192  Batches: 1  Memory Usage: 383kB
+                                Buffers: shared hit=1581
+                                ->  Bitmap Heap Scan on diagnosis d  (cost=65.02..1752.16 rows=5771 width=24) (actual time=0.347..3.441 rows=5821 loops=1)
+                                      Recheck Cond: ((icd_code)::text = 'B54'::text)
+                                      Heap Blocks: exact=1574
+                                      Buffers: shared hit=1581
+                                      ->  Bitmap Index Scan on idx_diagnosis_icd_code  (cost=0.00..63.58 rows=5771 width=0) (actual time=0.233..0.233 rows=5821 loops=1)
+                                            Index Cond: ((icd_code)::text = 'B54'::text)
+                                            Buffers: shared hit=7
+                    ->  Index Scan using appointment_pkey on appointment a  (cost=0.42..3.18 rows=1 width=16) (actual time=0.001..0.001 rows=1 loops=5821)
+                          Index Cond: (appointment_id = d.appointment_id)
+                          Buffers: shared hit=23284
+              ->  Index Scan using patient_pkey on patient p  (cost=0.29..0.31 rows=1 width=20) (actual time=0.001..0.001 rows=1 loops=5821)
+                    Index Cond: (patient_id = a.patient_id)
+                    Buffers: shared hit=17463
+Planning:
+  Buffers: shared hit=520
+Planning Time: 1.301 ms
+Execution Time: 26.193 ms

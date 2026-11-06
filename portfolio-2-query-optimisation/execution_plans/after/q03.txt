@@ -1,0 +1,80 @@
+-- Q3 (after optimisation indexes), captured 2026-11-07 00:39 WAT
+-- execution times of 3 runs (ms): 8.293 10.881 9.180
+
+-- Business reason: management compares month-to-date revenue across departments.
+-- Each invoice is attributed to the department of the doctor on its consultation line.
+SELECT d.department_id,
+       d.name AS department,
+       count(*)            AS invoices,
+       sum(i.total_amount) AS revenue
+FROM invoice i
+JOIN invoice_item ii ON ii.invoice_id = i.invoice_id AND ii.item_type = 'consultation'
+JOIN appointment  a  ON a.appointment_id = ii.reference_id
+JOIN staff        s  ON s.staff_id = a.doctor_id
+JOIN department   d  ON d.department_id = s.department_id
+WHERE i.issued_at >= date_trunc('month', now())
+  AND i.issued_at <  date_trunc('month', now()) + interval '1 month'
+  AND i.status <> 'cancelled'
+GROUP BY d.department_id, d.name
+ORDER BY revenue DESC;
+
+Sort  (cost=6405.64..6405.65 rows=5 width=62) (actual time=7.817..9.004 rows=4 loops=1)
+  Sort Key: (sum(i.total_amount)) DESC
+  Sort Method: quicksort  Memory: 25kB
+  Buffers: shared hit=10932
+  ->  Finalize GroupAggregate  (cost=6386.41..6405.58 rows=5 width=62) (actual time=7.708..8.987 rows=4 loops=1)
+        Group Key: d.department_id
+        Buffers: shared hit=10929
+        ->  Gather Merge  (cost=6386.41..6405.47 rows=5 width=62) (actual time=7.647..8.977 rows=8 loops=1)
+              Workers Planned: 1
+              Workers Launched: 1
+              Buffers: shared hit=10929
+              ->  Partial GroupAggregate  (cost=5386.40..5404.90 rows=5 width=62) (actual time=5.918..6.035 rows=4 loops=2)
+                    Group Key: d.department_id
+                    Buffers: shared hit=10929
+                    ->  Merge Join  (cost=5386.40..5398.70 rows=818 width=28) (actual time=5.875..5.975 rows=714 loops=2)
+                          Merge Cond: (s.department_id = d.department_id)
+                          Buffers: shared hit=10929
+                          ->  Sort  (cost=5385.29..5387.34 rows=818 width=10) (actual time=5.856..5.887 rows=714 loops=2)
+                                Sort Key: s.department_id
+                                Sort Method: quicksort  Memory: 59kB
+                                Buffers: shared hit=10927
+                                Worker 0:  Sort Method: quicksort  Memory: 46kB
+                                ->  Hash Join  (cost=25.73..5345.72 rows=818 width=10) (actual time=0.314..5.722 rows=714 loops=2)
+                                      Hash Cond: (a.doctor_id = s.staff_id)
+                                      Buffers: shared hit=10923
+                                      ->  Nested Loop  (cost=23.49..5341.17 rows=818 width=14) (actual time=0.274..5.561 rows=714 loops=2)
+                                            Buffers: shared hit=10906
+                                            ->  Nested Loop  (cost=23.07..4900.54 rows=818 width=14) (actual time=0.254..2.890 rows=714 loops=2)
+                                                  Buffers: shared hit=5193
+                                                  ->  Parallel Bitmap Heap Scan on invoice i  (cost=22.65..2962.72 rows=823 width=14) (actual time=0.224..1.094 rows=714 loops=2)
+                                                        Recheck Cond: ((issued_at >= date_trunc('month'::text, now())) AND (issued_at < (date_trunc('month'::text, now()) + '1 mon'::interval)))
+                                                        Filter: ((status)::text <> 'cancelled'::text)
+                                                        Heap Blocks: exact=541
+                                                        Buffers: shared hit=906
+                                                        ->  Bitmap Index Scan on idx_invoice_issued_at  (cost=0.00..22.30 rows=1399 width=0) (actual time=0.333..0.333 rows=1428 loops=1)
+                                                              Index Cond: ((issued_at >= date_trunc('month'::text, now())) AND (issued_at < (date_trunc('month'::text, now()) + '1 mon'::interval)))
+                                                              Buffers: shared hit=4
+                                                  ->  Index Only Scan using uq_invoice_item_consultation on invoice_item ii  (cost=0.42..2.34 rows=1 width=16) (actual time=0.002..0.002 rows=1 loops=1428)
+                                                        Index Cond: (invoice_id = i.invoice_id)
+                                                        Heap Fetches: 0
+                                                        Buffers: shared hit=4287
+                                            ->  Index Scan using appointment_pkey on appointment a  (cost=0.42..0.54 rows=1 width=16) (actual time=0.003..0.003 rows=1 loops=1428)
+                                                  Index Cond: (appointment_id = ii.reference_id)
+                                                  Buffers: shared hit=5713
+                                      ->  Hash  (cost=1.55..1.55 rows=55 width=12) (actual time=0.019..0.020 rows=55 loops=2)
+                                            Buckets: 1024  Batches: 1  Memory Usage: 11kB
+                                            Buffers: shared hit=2
+                                            ->  Seq Scan on staff s  (cost=0.00..1.55 rows=55 width=12) (actual time=0.007..0.011 rows=55 loops=2)
+                                                  Buffers: shared hit=2
+                          ->  Sort  (cost=1.11..1.12 rows=5 width=22) (actual time=0.017..0.017 rows=4 loops=2)
+                                Sort Key: d.department_id
+                                Sort Method: quicksort  Memory: 25kB
+                                Buffers: shared hit=2
+                                Worker 0:  Sort Method: quicksort  Memory: 25kB
+                                ->  Seq Scan on department d  (cost=0.00..1.05 rows=5 width=22) (actual time=0.006..0.007 rows=5 loops=2)
+                                      Buffers: shared hit=2
+Planning:
+  Buffers: shared hit=573
+Planning Time: 1.275 ms
+Execution Time: 9.180 ms

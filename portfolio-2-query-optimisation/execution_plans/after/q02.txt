@@ -1,0 +1,40 @@
+-- Q2 (after optimisation indexes), captured 2026-11-07 00:39 WAT
+-- execution times of 3 runs (ms): 2.035 2.017 1.900
+
+-- Business reason: the pharmacy restocks its fastest-moving drugs first.
+SELECT m.medication_id,
+       m.name,
+       count(*) AS times_prescribed
+FROM prescription pr
+JOIN medication m ON m.medication_id = pr.medication_id
+WHERE pr.issued_at >= now() - interval '30 days'
+GROUP BY m.medication_id, m.name
+ORDER BY times_prescribed DESC, m.name
+LIMIT 5;
+
+Limit  (cost=293.24..293.25 rows=5 width=31) (actual time=1.866..1.868 rows=5 loops=1)
+  Buffers: shared hit=39
+  ->  Sort  (cost=293.24..293.31 rows=30 width=31) (actual time=1.865..1.866 rows=5 loops=1)
+        Sort Key: (count(*)) DESC, m.name
+        Sort Method: top-N heapsort  Memory: 25kB
+        Buffers: shared hit=39
+        ->  HashAggregate  (cost=292.44..292.74 rows=30 width=31) (actual time=1.841..1.844 rows=23 loops=1)
+              Group Key: m.medication_id
+              Batches: 1  Memory Usage: 24kB
+              Buffers: shared hit=33
+              ->  Hash Join  (cost=2.10..257.47 rows=6995 width=23) (actual time=0.040..1.274 rows=7090 loops=1)
+                    Hash Cond: (pr.medication_id = m.medication_id)
+                    Buffers: shared hit=33
+                    ->  Index Only Scan using idx_prescription_issued_at on prescription pr  (cost=0.42..234.84 rows=6995 width=4) (actual time=0.020..0.501 rows=7090 loops=1)
+                          Index Cond: (issued_at >= (now() - '30 days'::interval))
+                          Heap Fetches: 0
+                          Buffers: shared hit=32
+                    ->  Hash  (cost=1.30..1.30 rows=30 width=23) (actual time=0.013..0.013 rows=30 loops=1)
+                          Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                          Buffers: shared hit=1
+                          ->  Seq Scan on medication m  (cost=0.00..1.30 rows=30 width=23) (actual time=0.005..0.007 rows=30 loops=1)
+                                Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=233
+Planning Time: 0.375 ms
+Execution Time: 1.900 ms

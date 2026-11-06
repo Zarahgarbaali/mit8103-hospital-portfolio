@@ -1,0 +1,15 @@
+             index             |  size   
+-------------------------------+---------
+ idx_admission_ward            | 208 kB
+ idx_appointment_scheduled_for | 14 MB
+ idx_diagnosis_icd_code        | 1192 kB
+ idx_invoice_issued_at         | 1808 kB
+ idx_invoice_open_balance      | 1080 kB
+ idx_lab_order_patient         | 1176 kB
+ idx_lab_order_pending         | 32 kB
+ idx_prescription_issued_at    | 5344 kB
+ uq_admission_open_bed         | 16 kB
+ uq_admission_open_patient     | 16 kB
+ uq_invoice_item_consultation  | 5336 kB
+(11 rows)
+
