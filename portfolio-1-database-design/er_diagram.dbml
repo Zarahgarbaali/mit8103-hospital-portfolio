@@ -1,0 +1,162 @@
+// MIVA Teaching Hospital - ER model
+// Paste into https://dbdiagram.io to render and export er_diagram.png
+
+Project miva_teaching_hospital {
+  database_type: 'PostgreSQL'
+  Note: 'Simulated mid-size hospital in Abuja. Outpatients, inpatients, lab, pharmacy, billing.'
+}
+
+Table patient {
+  patient_id bigserial [pk]
+  first_name varchar(50) [not null]
+  last_name varchar(50) [not null]
+  dob date [not null]
+  gender char(1) [not null, note: 'M or F']
+  phone varchar(20) [not null, unique]
+  address text
+  blood_group varchar(3) [note: 'A+, A-, B+, B-, AB+, AB-, O+, O-']
+  registered_at timestamptz [not null, default: `now()`]
+}
+
+Table department {
+  department_id serial [pk]
+  name varchar(80) [not null, unique]
+  location varchar(120)
+}
+
+Table staff {
+  staff_id bigserial [pk]
+  first_name varchar(50) [not null]
+  last_name varchar(50) [not null]
+  role varchar(20) [not null, note: 'doctor, nurse, lab_technician, pharmacist, receptionist, billing_officer, administrator']
+  department_id int [not null, ref: > department.department_id]
+  phone varchar(20) [not null, unique]
+  email varchar(120) [not null, unique]
+  hired_at timestamptz [not null]
+}
+
+Table appointment {
+  appointment_id bigserial [pk]
+  patient_id bigint [not null, ref: > patient.patient_id]
+  doctor_id bigint [not null, ref: > staff.staff_id]
+  scheduled_for timestamptz [not null]
+  status varchar(20) [not null, default: 'booked', note: 'booked, completed, cancelled, no_show']
+  reason text
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    patient_id
+    (doctor_id, scheduled_for)
+  }
+}
+
+Table diagnosis {
+  diagnosis_id bigserial [pk]
+  appointment_id bigint [not null, ref: > appointment.appointment_id]
+  icd_code varchar(10) [not null, note: 'ICD-10 code, e.g. B54']
+  notes text
+  recorded_at timestamptz [not null, default: `now()`]
+}
+
+Table medication {
+  medication_id serial [pk]
+  name varchar(100) [not null, unique]
+  manufacturer varchar(100)
+  unit_price numeric(10,2) [not null]
+  stock_quantity int [not null]
+  reorder_level int [not null]
+}
+
+Table prescription {
+  prescription_id bigserial [pk]
+  diagnosis_id bigint [not null, ref: > diagnosis.diagnosis_id]
+  medication_id int [not null, ref: > medication.medication_id]
+  dosage varchar(60) [not null]
+  duration_days int [not null]
+  issued_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (diagnosis_id, medication_id) [unique]
+  }
+}
+
+Table lab_test {
+  lab_test_id serial [pk]
+  name varchar(100) [not null, unique]
+  standard_cost numeric(10,2) [not null]
+}
+
+Table lab_order {
+  lab_order_id bigserial [pk]
+  patient_id bigint [not null, ref: > patient.patient_id]
+  lab_test_id int [not null, ref: > lab_test.lab_test_id]
+  ordered_by bigint [not null, ref: > staff.staff_id, note: 'must be a doctor']
+  ordered_at timestamptz [not null, default: `now()`]
+  status varchar(20) [not null, default: 'pending', note: 'pending, in_progress, completed, cancelled']
+}
+
+Table lab_result {
+  lab_result_id bigserial [pk]
+  lab_order_id bigint [not null, unique, ref: - lab_order.lab_order_id]
+  result_value text [not null]
+  reference_range varchar(60)
+  recorded_at timestamptz [not null, default: `now()`]
+  recorded_by bigint [not null, ref: > staff.staff_id, note: 'must be a lab technician']
+}
+
+Table ward {
+  ward_id serial [pk]
+  name varchar(80) [not null, unique]
+  department_id int [not null, ref: > department.department_id]
+  total_beds int [not null]
+}
+
+Table admission {
+  admission_id bigserial [pk]
+  patient_id bigint [not null, ref: > patient.patient_id]
+  ward_id int [not null, ref: > ward.ward_id]
+  bed_number int [not null]
+  admitted_at timestamptz [not null, default: `now()`]
+  discharged_at timestamptz [note: 'NULL while the patient is still on the ward']
+
+  indexes {
+    (ward_id, bed_number) [unique, note: 'partial: WHERE discharged_at IS NULL']
+    patient_id [unique, note: 'partial: WHERE discharged_at IS NULL']
+  }
+}
+
+Table invoice {
+  invoice_id bigserial [pk]
+  patient_id bigint [not null, ref: > patient.patient_id]
+  issued_at timestamptz [not null, default: `now()`]
+  total_amount numeric(12,2) [not null, default: 0, note: 'maintained by trigger from invoice_item']
+  status varchar(20) [not null, default: 'unpaid', note: 'unpaid, partially_paid, paid, cancelled']
+}
+
+Table invoice_item {
+  invoice_item_id bigserial [pk]
+  invoice_id bigint [not null, ref: > invoice.invoice_id, note: 'ON DELETE CASCADE']
+  description varchar(200) [not null]
+  item_type varchar(20) [not null, note: 'consultation, medication, lab_test, admission']
+  reference_id bigint [note: 'appointment_id, prescription_id, lab_order_id or admission_id depending on item_type']
+  amount numeric(12,2) [not null]
+}
+
+Table payment {
+  payment_id bigserial [pk]
+  invoice_id bigint [not null, ref: > invoice.invoice_id]
+  amount numeric(12,2) [not null]
+  method varchar(20) [not null, note: 'cash, card, transfer, hmo']
+  paid_at timestamptz [not null, default: `now()`]
+}
+
+Table audit_log {
+  audit_id bigserial [pk]
+  table_name varchar(60) [not null]
+  row_id bigint [not null]
+  action varchar(30) [not null]
+  changed_by text [not null, default: `current_user`]
+  changed_at timestamptz [not null, default: `now()`]
+  old_data jsonb
+  new_data jsonb
+}
