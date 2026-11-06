@@ -1,0 +1,18 @@
+$ docker ps (replica set members)
+NAMES            IMAGE     STATUS                    PORTS
+mongo3           mongo:7   Up About a minute         127.0.0.1:27020->27020/tcp
+mongo1           mongo:7   Up About a minute         127.0.0.1:27018->27018/tcp
+mongo2           mongo:7   Up About a minute         127.0.0.1:27019->27019/tcp
+
+$ rs.status() on mongo1
+replica set: hospitalRS   reported by: mongo1:27018   at: 2026-11-06T23:57:46.366Z
+member          state                     health  optime (last applied write)   sync source / message
+mongo1:27018    PRIMARY                   1       2026-11-06T23:57:44.000Z      
+mongo2:27019    SECONDARY                 1       2026-11-06T23:57:44.000Z      mongo1:27018
+mongo3:27020    SECONDARY                 1       2026-11-06T23:57:44.000Z      mongo1:27018
+primary: mongo1:27018   term: 1
+
+$ rs.conf().members
+mongo1:27018  priority=2  votes=1
+mongo2:27019  priority=1  votes=1
+mongo3:27020  priority=1  votes=1

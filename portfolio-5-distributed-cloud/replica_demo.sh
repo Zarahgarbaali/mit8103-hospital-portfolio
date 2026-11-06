@@ -28,7 +28,7 @@ on_set() {
 
 STATUS_JS='
 const s = rs.status();
-print(`replica set: ${s.set}   reported by: ${db.getMongo().host}   at: ${s.date.toISOString()}`);
+print(`replica set: ${s.set}   reported by: ${db.hello().me}   at: ${s.date.toISOString()}`);
 print("member          state                     health  optime (last applied write)   sync source / message");
 s.members.forEach(m => print(
   `${m.name.padEnd(15)} ${m.stateStr.padEnd(25)} ${String(m.health).padEnd(7)} ${(m.optimeDate ? m.optimeDate.toISOString() : "-").padEnd(29)} ${m.syncSourceHost || m.lastHeartbeatMessage || ""}`));
