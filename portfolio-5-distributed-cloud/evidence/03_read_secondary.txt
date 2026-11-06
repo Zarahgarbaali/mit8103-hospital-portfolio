@@ -1,0 +1,42 @@
+$ read from mongo2 directly with readPreference secondary
+connected to: mongo2:27019  isWritablePrimary=false  secondary=true
+patient_records count on secondary: 5
+{
+  patient_id: 1,
+  full_name: 'Amina Eze'
+}
+{
+  patient_id: 2,
+  full_name: 'Chukwuemeka Danladi'
+}
+{
+  patient_id: 3,
+  full_name: 'Folasade Umar'
+}
+{
+  patient_id: 4,
+  full_name: 'Abubakar Balogun'
+}
+{
+  patient_id: 5,
+  full_name: 'Chiamaka Mohammed'
+}
+
+$ the same count from mongo3
+connected to: mongo3:27020  count: 5
+
+$ try to write directly on a secondary (must be refused)
+refused: NotWritablePrimary - not primary
+
+$ replication lag (rs.printSecondaryReplicationInfo on the primary)
+source: mongo2:27019
+{
+  syncedTo: 'Fri Nov 06 2026 23:57:47 GMT+0000 (Coordinated Universal Time)',
+  replLag: '0 secs (0 hrs) behind the primary '
+}
+---
+source: mongo3:27020
+{
+  syncedTo: 'Fri Nov 06 2026 23:57:47 GMT+0000 (Coordinated Universal Time)',
+  replLag: '0 secs (0 hrs) behind the primary '
+}

@@ -1,0 +1,3 @@
+$ insert 5 patient records through the replica-set connection (lands on the primary), writeConcern majority
+inserted 5 documents, acknowledged=true
+written via: mongo1:27018 (isWritablePrimary=true)
