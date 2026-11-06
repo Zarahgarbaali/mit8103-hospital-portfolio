@@ -1,0 +1,45 @@
+# 04_row_locking.sql scenario 4c (skip_locked_work_queue), run 2026-11-07 00:48:52 WAT
+
+## Session A
+
+[A] lab technician A claims the oldest pending lab order
+BEGIN;
+BEGIN
+SELECT lab_order_id, ordered_at, to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS a_claimed_at
+FROM lab_order
+WHERE status = 'pending'
+ORDER BY ordered_at
+LIMIT 1
+FOR UPDATE SKIP LOCKED;
+ lab_order_id |          ordered_at           | a_claimed_at 
+--------------+-------------------------------+--------------
+        12544 | 2026-11-04 00:42:19.297956+01 | 00:48:50.500
+(1 row)
+
+SELECT pg_sleep(2);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ROLLBACK;
+ROLLBACK
+
+## Session B (started 0.5 s after Session A)
+
+[B] lab technician B claims "the oldest pending order" 0.5 s later: gets the NEXT one, without waiting
+BEGIN;
+BEGIN
+SELECT lab_order_id, ordered_at, to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS b_claimed_at
+FROM lab_order
+WHERE status = 'pending'
+ORDER BY ordered_at
+LIMIT 1
+FOR UPDATE SKIP LOCKED;
+ lab_order_id |          ordered_at           | b_claimed_at 
+--------------+-------------------------------+--------------
+        72647 | 2026-11-04 00:43:23.947344+01 | 00:48:51.031
+(1 row)
+
+ROLLBACK;
+ROLLBACK

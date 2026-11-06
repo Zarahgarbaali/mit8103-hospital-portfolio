@@ -1,0 +1,47 @@
+# 04_row_locking.sql scenario 4b (for_update_nowait), run 2026-11-07 00:48:50 WAT
+
+## Session A
+
+[A] pharmacist A locks the salbutamol row and holds it for 2 s
+BEGIN;
+BEGIN
+SELECT medication_id, name, stock_quantity, to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at
+FROM medication WHERE name = 'Salbutamol inhaler 100mcg'
+FOR UPDATE;
+ medication_id |           name            | stock_quantity |      at      
+---------------+---------------------------+----------------+--------------
+            20 | Salbutamol inhaler 100mcg |             15 | 00:48:48.293
+(1 row)
+
+SELECT pg_sleep(2);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+COMMIT;
+COMMIT
+
+## Session B (started 0.5 s after Session A)
+
+[B] pharmacist B asks for the same row with NOWAIT: fails at once instead of queueing
+BEGIN;
+BEGIN
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS b_requests_lock;
+ b_requests_lock 
+-----------------
+ 00:48:48.852
+(1 row)
+
+SELECT medication_id, name, stock_quantity
+FROM medication WHERE name = 'Salbutamol inhaler 100mcg'
+FOR UPDATE NOWAIT;
+psql:/tmp/s4bb.sql:6: ERROR:  could not obtain lock on row in relation "medication"
+ROLLBACK;
+ROLLBACK
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS b_told_at;
+  b_told_at   
+--------------
+ 00:48:48.853
+(1 row)
+

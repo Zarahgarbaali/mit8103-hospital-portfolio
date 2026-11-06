@@ -1,0 +1,87 @@
+# 04_row_locking.sql scenario 4a (for_update_last_pack), run 2026-11-07 00:48:48 WAT
+
+## Session A
+
+[A] setup: only one pack of insulin glargine left
+UPDATE medication SET stock_quantity = 1 WHERE name = 'Insulin glargine 100IU/ml';
+UPDATE 1
+[A] pharmacist A locks the stock row, checks it, and dispenses
+BEGIN;
+BEGIN
+SELECT medication_id, name, stock_quantity AS a_sees,
+       to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at
+FROM medication WHERE name = 'Insulin glargine 100IU/ml'
+FOR UPDATE;
+ medication_id |           name            | a_sees |      at      
+---------------+---------------------------+--------+--------------
+            19 | Insulin glargine 100IU/ml |      1 | 00:48:46.096
+(1 row)
+
+SELECT pg_sleep(2);
+ pg_sleep 
+----------
+ 
+(1 row)
+
+UPDATE medication SET stock_quantity = stock_quantity - 1
+WHERE name = 'Insulin glargine 100IU/ml' AND stock_quantity >= 1
+RETURNING stock_quantity AS left_after_a, to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at;
+ left_after_a |      at      
+--------------+--------------
+            0 | 00:48:48.107
+(1 row)
+
+UPDATE 1
+INSERT INTO audit_log (table_name, row_id, action, new_data)
+SELECT 'medication', medication_id, 'dispense', jsonb_build_object('quantity', 1, 'by', 'pharmacist A')
+FROM medication WHERE name = 'Insulin glargine 100IU/ml';
+INSERT 0 1
+COMMIT;
+COMMIT
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS at, 'A committed' AS event;
+      at      |    event    
+--------------+-------------
+ 00:48:48.111 | A committed
+(1 row)
+
+
+## Session B (started 0.5 s after Session A)
+
+[B] pharmacist B tries to lock the same row 0.5 s later
+BEGIN;
+BEGIN
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS b_requests_lock;
+ b_requests_lock 
+-----------------
+ 00:48:46.729
+(1 row)
+
+SELECT medication_id, name, stock_quantity AS b_sees
+FROM medication WHERE name = 'Insulin glargine 100IU/ml'
+FOR UPDATE;
+ medication_id |           name            | b_sees 
+---------------+---------------------------+--------
+            19 | Insulin glargine 100IU/ml |      0
+(1 row)
+
+SELECT to_char(clock_timestamp(), 'HH24:MI:SS.MS') AS b_got_lock;
+  b_got_lock  
+--------------
+ 00:48:48.111
+(1 row)
+
+UPDATE medication SET stock_quantity = stock_quantity - 1
+WHERE name = 'Insulin glargine 100IU/ml' AND stock_quantity >= 1
+RETURNING stock_quantity AS left_after_b;
+ left_after_b 
+--------------
+(0 rows)
+
+UPDATE 0
+COMMIT;
+COMMIT
+[B] reset stock to the seed value
+UPDATE medication SET stock_quantity = 30 WHERE name = 'Insulin glargine 100IU/ml';
+UPDATE 1
+DELETE FROM audit_log WHERE action = 'dispense' AND new_data ->> 'by' = 'pharmacist A';
+DELETE 1
