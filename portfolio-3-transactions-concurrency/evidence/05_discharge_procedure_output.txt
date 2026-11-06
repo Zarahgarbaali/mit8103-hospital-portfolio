@@ -1,0 +1,122 @@
+CREATE OR REPLACE PROCEDURE discharge_patient(p_admission_id BIGINT)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_old admission%ROWTYPE;
+    v_new admission%ROWTYPE;
+BEGIN
+    -- Lock the row first: if two nurses discharge the same patient at the
+    -- same time, the second waits here and then sees discharged_at is set.
+    SELECT * INTO v_old
+    FROM admission
+    WHERE admission_id = p_admission_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Admission % not found', p_admission_id
+            USING ERRCODE = 'no_data_found';
+    END IF;
+
+    IF v_old.discharged_at IS NOT NULL THEN
+        RAISE EXCEPTION 'Admission % already discharged at %', p_admission_id, v_old.discharged_at
+            USING ERRCODE = 'check_violation';
+    END IF;
+
+    UPDATE admission
+    SET discharged_at = now()
+    WHERE admission_id = p_admission_id
+    RETURNING * INTO v_new;
+
+    INSERT INTO audit_log (table_name, row_id, action, changed_by, changed_at, old_data, new_data)
+    VALUES ('admission', p_admission_id, 'discharge', current_user, now(),
+            to_jsonb(v_old), to_jsonb(v_new));
+END;
+$$;
+CREATE PROCEDURE
+--- 1. Ward occupancy before
+SELECT w.name, w.total_beds, count(a.admission_id) AS occupied
+FROM ward w LEFT JOIN admission a ON a.ward_id = w.ward_id AND a.discharged_at IS NULL
+GROUP BY w.ward_id, w.name, w.total_beds ORDER BY w.ward_id;
+      name       | total_beds | occupied 
+-----------------+------------+----------
+ Medical Ward A  |         10 |        2
+ Children's Ward |          8 |        2
+ Maternity Ward  |          8 |        2
+ Surgical Ward   |         10 |        2
+(4 rows)
+
+SELECT admission_id AS adm_id
+FROM admission WHERE discharged_at IS NULL
+ORDER BY admitted_at LIMIT 1 
+SELECT a.admission_id, p.first_name || ' ' || p.last_name AS patient, w.name AS ward,
+       a.bed_number, a.admitted_at, a.discharged_at
+FROM admission a JOIN patient p USING (patient_id) JOIN ward w USING (ward_id)
+WHERE a.admission_id = 13;
+ admission_id |     patient     |      ward      | bed_number |          admitted_at          | discharged_at 
+--------------+-----------------+----------------+------------+-------------------------------+---------------
+           13 | Aminu Nwachukwu | Medical Ward A |          4 | 2026-11-02 00:39:51.101463+01 | 
+(1 row)
+
+--- 2. Discharge succeeds
+CALL discharge_patient(13);
+CALL
+SELECT admission_id, bed_number, admitted_at, discharged_at
+FROM admission WHERE admission_id = 13;
+ admission_id | bed_number |          admitted_at          |         discharged_at         
+--------------+------------+-------------------------------+-------------------------------
+           13 |          4 | 2026-11-02 00:39:51.101463+01 | 2026-11-07 00:49:15.258838+01
+(1 row)
+
+SELECT audit_id, table_name, row_id, action, changed_by, changed_at,
+       old_data ->> 'discharged_at' AS old_discharged_at,
+       new_data ->> 'discharged_at' AS new_discharged_at
+FROM audit_log WHERE table_name = 'admission' AND row_id = 13;
+ audit_id | table_name | row_id |  action   |   changed_by   |          changed_at           | old_discharged_at |        new_discharged_at         
+----------+------------+--------+-----------+----------------+-------------------------------+-------------------+----------------------------------
+       39 | admission  |     13 | discharge | hospital_admin | 2026-11-07 00:49:15.258838+01 |                   | 2026-11-07T00:49:15.258838+01:00
+(1 row)
+
+--- 3. Discharging the same admission again is refused
+CALL discharge_patient(13);
+psql:/workspace/portfolio-3-transactions-concurrency/05_discharge_procedure.sql:78: ERROR:  Admission 13 already discharged at 2026-11-07 00:49:15.258838+01
+CONTEXT:  PL/pgSQL function discharge_patient(bigint) line 19 at RAISE
+--- 4. An admission that does not exist is refused
+CALL discharge_patient(999999999);
+psql:/workspace/portfolio-3-transactions-concurrency/05_discharge_procedure.sql:81: ERROR:  Admission 999999999 not found
+CONTEXT:  PL/pgSQL function discharge_patient(bigint) line 14 at RAISE
+--- 5. Inside a caller transaction that rolls back, the discharge and its audit row both disappear
+SELECT admission_id AS adm2_id
+FROM admission WHERE discharged_at IS NULL
+ORDER BY admitted_at LIMIT 1 
+BEGIN;
+BEGIN
+CALL discharge_patient(20);
+CALL
+SELECT admission_id, discharged_at IS NOT NULL AS discharged_inside_txn
+FROM admission WHERE admission_id = 20;
+ admission_id | discharged_inside_txn 
+--------------+-----------------------
+           20 | t
+(1 row)
+
+ROLLBACK;
+ROLLBACK
+SELECT admission_id, discharged_at IS NOT NULL AS discharged_after_rollback,
+       (SELECT count(*) FROM audit_log WHERE table_name = 'admission' AND row_id = 20) AS audit_rows
+FROM admission WHERE admission_id = 20;
+ admission_id | discharged_after_rollback | audit_rows 
+--------------+---------------------------+------------
+           20 | f                         |          0
+(1 row)
+
+--- 6. Ward occupancy after: one bed freed
+SELECT w.name, w.total_beds, count(a.admission_id) AS occupied
+FROM ward w LEFT JOIN admission a ON a.ward_id = w.ward_id AND a.discharged_at IS NULL
+GROUP BY w.ward_id, w.name, w.total_beds ORDER BY w.ward_id;
+      name       | total_beds | occupied 
+-----------------+------------+----------
+ Medical Ward A  |         10 |        1
+ Children's Ward |          8 |        2
+ Maternity Ward  |          8 |        2
+ Surgical Ward   |         10 |        2
+(4 rows)
+
