@@ -1,0 +1,46 @@
+name: hospital
+
+services:
+  hospital_pg:
+    image: postgres:16
+    container_name: hospital_pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hospital_admin
+      POSTGRES_PASSWORD: hospital_pass
+      POSTGRES_DB: hospital_db
+      TZ: Africa/Lagos
+      PGTZ: Africa/Lagos
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ../:/workspace:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hospital_admin -d hospital_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  hospital_mongo:
+    image: mongo:7
+    container_name: hospital_mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: hospital_admin
+      MONGO_INITDB_ROOT_PASSWORD: hospital_pass
+      MONGO_INITDB_DATABASE: hospital
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+      - ../:/workspace:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pg_data:
+  mongo_data:
