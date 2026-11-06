@@ -1,0 +1,24 @@
+Timing is on.
+--- A. Insert 50,000 appointments WITH idx_appointment_patient, idx_appointment_doctor_date, idx_appointment_scheduled_for
+BEGIN
+Time: 0.144 ms
+INSERT 0 50000
+Time: 864.131 ms
+ROLLBACK
+Time: 0.130 ms
+--- B. Same insert WITHOUT the three secondary indexes
+BEGIN
+Time: 0.334 ms
+DROP INDEX
+Time: 0.895 ms
+INSERT 0 50000
+Time: 650.274 ms
+ROLLBACK
+Time: 0.175 ms
+--- C. Disk used by appointment: table vs its indexes
+ table_size | all_indexes_size | covering_index_size 
+------------+------------------+---------------------
+ 44 MB      | 45 MB            | 19 MB
+(1 row)
+
+Time: 0.435 ms
