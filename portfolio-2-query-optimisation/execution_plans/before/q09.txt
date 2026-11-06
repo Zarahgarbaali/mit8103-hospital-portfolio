@@ -1,0 +1,59 @@
+-- Q9 (before optimisation indexes), captured 2026-11-07 00:37 WAT
+-- execution times of 3 runs (ms): 135.317 143.736 136.591
+
+-- Business reason: the billing office calls the 10 patients who owe the most.
+SELECT p.patient_id,
+       p.first_name || ' ' || p.last_name           AS patient,
+       p.phone,
+       sum(i.total_amount)                           AS billed,
+       sum(COALESCE(pay.paid, 0))                    AS paid,
+       sum(i.total_amount - COALESCE(pay.paid, 0))   AS outstanding
+FROM invoice i
+JOIN patient p ON p.patient_id = i.patient_id
+LEFT JOIN (SELECT invoice_id, sum(amount) AS paid
+           FROM payment GROUP BY invoice_id) pay ON pay.invoice_id = i.invoice_id
+WHERE i.status IN ('unpaid', 'partially_paid')
+GROUP BY p.patient_id, p.first_name, p.last_name, p.phone
+ORDER BY outstanding DESC
+LIMIT 10;
+
+Limit  (cost=25054.08..25054.10 rows=10 width=163) (actual time=136.363..136.367 rows=10 loops=1)
+  Buffers: shared hit=81771 read=2176
+  ->  Sort  (cost=25054.08..25104.20 rows=20050 width=163) (actual time=136.362..136.364 rows=10 loops=1)
+        Sort Key: (sum((i.total_amount - COALESCE((sum(payment.amount)), '0'::numeric)))) DESC
+        Sort Method: top-N heapsort  Memory: 27kB
+        Buffers: shared hit=81771 read=2176
+        ->  GroupAggregate  (cost=23658.30..24620.80 rows=20050 width=163) (actual time=117.680..133.494 rows=17338 loops=1)
+              Group Key: p.patient_id
+              Buffers: shared hit=81768 read=2176
+              ->  Sort  (cost=23658.30..23743.53 rows=34092 width=73) (actual time=117.670..119.103 rows=34563 loops=1)
+                    Sort Key: p.patient_id
+                    Sort Method: quicksort  Memory: 3476kB
+                    Buffers: shared hit=81768 read=2176
+                    ->  Hash Join  (cost=7606.24..21091.66 rows=34092 width=73) (actual time=26.636..110.827 rows=34563 loops=1)
+                          Hash Cond: (i.patient_id = p.patient_id)
+                          Buffers: shared hit=81765 read=2176
+                          ->  Hash Right Join  (cost=6927.12..20323.02 rows=34092 width=46) (actual time=22.468..101.034 rows=34563 loops=1)
+                                Hash Cond: (payment.invoice_id = i.invoice_id)
+                                Buffers: shared hit=81537 read=2176
+                                ->  GroupAggregate  (cost=0.42..11433.33 rows=155483 width=40) (actual time=0.024..60.654 rows=155483 loops=1)
+                                      Group Key: payment.invoice_id
+                                      Buffers: shared hit=79372
+                                      ->  Index Scan using idx_payment_invoice on payment  (cost=0.42..8712.38 rows=155483 width=14) (actual time=0.018..20.754 rows=155483 loops=1)
+                                            Buffers: shared hit=79372
+                                ->  Hash  (cost=6500.55..6500.55 rows=34092 width=22) (actual time=22.341..22.341 rows=34563 loops=1)
+                                      Buckets: 65536  Batches: 1  Memory Usage: 2403kB
+                                      Buffers: shared hit=2165 read=2176
+                                      ->  Seq Scan on invoice i  (cost=0.00..6500.55 rows=34092 width=22) (actual time=0.011..15.673 rows=34563 loops=1)
+                                            Filter: ((status)::text = ANY ('{unpaid,partially_paid}'::text[]))
+                                            Rows Removed by Filter: 138201
+                                            Buffers: shared hit=2165 read=2176
+                          ->  Hash  (cost=428.50..428.50 rows=20050 width=35) (actual time=4.113..4.113 rows=20050 loops=1)
+                                Buckets: 32768  Batches: 1  Memory Usage: 1585kB
+                                Buffers: shared hit=228
+                                ->  Seq Scan on patient p  (cost=0.00..428.50 rows=20050 width=35) (actual time=0.003..1.549 rows=20050 loops=1)
+                                      Buffers: shared hit=228
+Planning:
+  Buffers: shared hit=276
+Planning Time: 0.503 ms
+Execution Time: 136.591 ms

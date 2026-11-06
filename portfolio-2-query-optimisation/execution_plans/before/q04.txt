@@ -1,0 +1,43 @@
+-- Q4 (before optimisation indexes), captured 2026-11-07 00:37 WAT
+-- execution times of 3 runs (ms): 67.038 65.075 66.028
+
+-- Business reason: frequent attenders are flagged for a care-coordination review.
+SELECT p.patient_id,
+       p.first_name,
+       p.last_name,
+       count(*) AS appointments_6m
+FROM appointment a
+JOIN patient p ON p.patient_id = a.patient_id
+WHERE a.scheduled_for >= now() - interval '6 months'
+  AND a.scheduled_for <  now()
+  AND a.status <> 'cancelled'
+GROUP BY p.patient_id, p.first_name, p.last_name
+HAVING count(*) > 3
+ORDER BY appointments_6m DESC, p.patient_id;
+
+Sort  (cost=12769.37..12786.08 rows=6683 width=28) (actual time=64.960..65.319 rows=8317 loops=1)
+  Sort Key: (count(*)) DESC, p.patient_id
+  Sort Method: quicksort  Memory: 839kB
+  Buffers: shared hit=3642
+  ->  HashAggregate  (cost=12094.16..12344.79 rows=6683 width=28) (actual time=59.113..60.788 rows=8317 loops=1)
+        Group Key: p.patient_id
+        Filter: (count(*) > 3)
+        Batches: 1  Memory Usage: 2833kB
+        Rows Removed by Filter: 10971
+        Buffers: shared hit=3639
+        ->  Hash Join  (cost=679.12..11765.31 rows=65771 width=20) (actual time=3.645..49.543 rows=65543 loops=1)
+              Hash Cond: (a.patient_id = p.patient_id)
+              Buffers: shared hit=3639
+              ->  Seq Scan on appointment a  (cost=0.00..10913.50 rows=65771 width=8) (actual time=0.008..36.461 rows=65543 loops=1)
+                    Filter: (((status)::text <> 'cancelled'::text) AND (scheduled_for < now()) AND (scheduled_for >= (now() - '6 mons'::interval)))
+                    Rows Removed by Filter: 234557
+                    Buffers: shared hit=3411
+              ->  Hash  (cost=428.50..428.50 rows=20050 width=20) (actual time=3.585..3.586 rows=20050 loops=1)
+                    Buckets: 32768  Batches: 1  Memory Usage: 1292kB
+                    Buffers: shared hit=228
+                    ->  Seq Scan on patient p  (cost=0.00..428.50 rows=20050 width=20) (actual time=0.002..1.373 rows=20050 loops=1)
+                          Buffers: shared hit=228
+Planning:
+  Buffers: shared hit=209
+Planning Time: 0.469 ms
+Execution Time: 66.028 ms

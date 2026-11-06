@@ -1,0 +1,59 @@
+-- Q8 (before optimisation indexes), captured 2026-11-07 00:37 WAT
+-- execution times of 3 runs (ms): 71.758 65.514 73.122
+
+-- Business reason: clinical leads monitor how long each doctor takes to record a diagnosis.
+SELECT s.staff_id,
+       'Dr. ' || s.first_name || ' ' || s.last_name AS doctor,
+       count(*) AS diagnoses,
+       date_trunc('second', avg(d.recorded_at - a.scheduled_for)) AS avg_time_to_diagnosis
+FROM diagnosis   d
+JOIN appointment a ON a.appointment_id = d.appointment_id
+JOIN staff       s ON s.staff_id = a.doctor_id
+GROUP BY s.staff_id, s.first_name, s.last_name
+ORDER BY avg_time_to_diagnosis;
+
+Sort  (cost=11399.82..11399.96 rows=55 width=76) (actual time=69.277..73.030 rows=46 loops=1)
+  Sort Key: (date_trunc('second'::text, avg((d.recorded_at - a.scheduled_for))))
+  Sort Method: quicksort  Memory: 29kB
+  Buffers: shared hit=5056
+  ->  Finalize GroupAggregate  (cost=11383.34..11398.23 rows=55 width=76) (actual time=69.201..73.008 rows=46 loops=1)
+        Group Key: s.staff_id
+        Buffers: shared hit=5051
+        ->  Gather Merge  (cost=11383.34..11396.17 rows=110 width=60) (actual time=69.190..72.956 rows=138 loops=1)
+              Workers Planned: 2
+              Workers Launched: 2
+              Buffers: shared hit=5051
+              ->  Sort  (cost=10383.31..10383.45 rows=55 width=60) (actual time=67.671..67.676 rows=46 loops=3)
+                    Sort Key: s.staff_id
+                    Sort Method: quicksort  Memory: 30kB
+                    Buffers: shared hit=5051
+                    Worker 0:  Sort Method: quicksort  Memory: 30kB
+                    Worker 1:  Sort Method: quicksort  Memory: 30kB
+                    ->  Partial HashAggregate  (cost=10381.17..10381.72 rows=55 width=60) (actual time=67.645..67.652 rows=46 loops=3)
+                          Group Key: s.staff_id
+                          Batches: 1  Memory Usage: 32kB
+                          Buffers: shared hit=5035
+                          Worker 0:  Batches: 1  Memory Usage: 32kB
+                          Worker 1:  Batches: 1  Memory Usage: 32kB
+                          ->  Hash Join  (cost=3903.96..9661.28 rows=71989 width=36) (actual time=15.945..55.177 rows=57591 loops=3)
+                                Hash Cond: (a.doctor_id = s.staff_id)
+                                Buffers: shared hit=5035
+                                ->  Parallel Hash Join  (cost=3901.72..9455.51 rows=71989 width=24) (actual time=15.913..47.943 rows=57591 loops=3)
+                                      Hash Cond: (a.appointment_id = d.appointment_id)
+                                      Buffers: shared hit=5026
+                                      ->  Parallel Seq Scan on appointment a  (cost=0.00..4661.42 rows=125042 width=24) (actual time=0.005..7.391 rows=100033 loops=3)
+                                            Buffers: shared hit=3411
+                                      ->  Parallel Hash  (cost=2631.32..2631.32 rows=101632 width=16) (actual time=15.623..15.624 rows=57591 loops=3)
+                                            Buckets: 262144  Batches: 1  Memory Usage: 10240kB
+                                            Buffers: shared hit=1615
+                                            ->  Parallel Seq Scan on diagnosis d  (cost=0.00..2631.32 rows=101632 width=16) (actual time=0.004..4.968 rows=57591 loops=3)
+                                                  Buffers: shared hit=1615
+                                ->  Hash  (cost=1.55..1.55 rows=55 width=20) (actual time=0.017..0.017 rows=55 loops=3)
+                                      Buckets: 1024  Batches: 1  Memory Usage: 11kB
+                                      Buffers: shared hit=3
+                                      ->  Seq Scan on staff s  (cost=0.00..1.55 rows=55 width=20) (actual time=0.005..0.009 rows=55 loops=3)
+                                            Buffers: shared hit=3
+Planning:
+  Buffers: shared hit=305
+Planning Time: 0.544 ms
+Execution Time: 73.122 ms

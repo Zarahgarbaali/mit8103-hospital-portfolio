@@ -1,0 +1,79 @@
+-- Q3 (before optimisation indexes), captured 2026-11-07 00:37 WAT
+-- execution times of 3 runs (ms): 16.908 16.075 14.885
+
+-- Business reason: management compares month-to-date revenue across departments.
+-- Each invoice is attributed to the department of the doctor on its consultation line.
+SELECT d.department_id,
+       d.name AS department,
+       count(*)            AS invoices,
+       sum(i.total_amount) AS revenue
+FROM invoice i
+JOIN invoice_item ii ON ii.invoice_id = i.invoice_id AND ii.item_type = 'consultation'
+JOIN appointment  a  ON a.appointment_id = ii.reference_id
+JOIN staff        s  ON s.staff_id = a.doctor_id
+JOIN department   d  ON d.department_id = s.department_id
+WHERE i.issued_at >= date_trunc('month', now())
+  AND i.issued_at <  date_trunc('month', now()) + interval '1 month'
+  AND i.status <> 'cancelled'
+GROUP BY d.department_id, d.name
+ORDER BY revenue DESC;
+
+Sort  (cost=12569.52..12569.54 rows=5 width=62) (actual time=13.349..14.819 rows=4 loops=1)
+  Sort Key: (sum(i.total_amount)) DESC
+  Sort Method: quicksort  Memory: 25kB
+  Buffers: shared hit=17243
+  ->  Finalize GroupAggregate  (cost=12554.90..12569.47 rows=5 width=62) (actual time=13.267..14.801 rows=4 loops=1)
+        Group Key: d.department_id
+        Buffers: shared hit=17240
+        ->  Gather Merge  (cost=12554.90..12569.30 rows=10 width=62) (actual time=13.227..14.790 rows=12 loops=1)
+              Workers Planned: 2
+              Workers Launched: 2
+              Buffers: shared hit=17240
+              ->  Partial GroupAggregate  (cost=11554.87..11568.12 rows=5 width=62) (actual time=11.439..11.522 rows=4 loops=3)
+                    Group Key: d.department_id
+                    Buffers: shared hit=17240
+                    ->  Merge Join  (cost=11554.87..11563.67 rows=585 width=28) (actual time=11.399..11.477 rows=476 loops=3)
+                          Merge Cond: (s.department_id = d.department_id)
+                          Buffers: shared hit=17240
+                          ->  Sort  (cost=11553.77..11555.23 rows=585 width=10) (actual time=11.372..11.395 rows=476 loops=3)
+                                Sort Key: s.department_id
+                                Sort Method: quicksort  Memory: 44kB
+                                Buffers: shared hit=17237
+                                Worker 0:  Sort Method: quicksort  Memory: 42kB
+                                Worker 1:  Sort Method: quicksort  Memory: 43kB
+                                ->  Hash Join  (cost=3.08..11526.88 rows=585 width=10) (actual time=0.175..11.291 rows=476 loops=3)
+                                      Hash Cond: (a.doctor_id = s.staff_id)
+                                      Buffers: shared hit=17229
+                                      ->  Nested Loop  (cost=0.84..11522.98 rows=585 width=14) (actual time=0.131..11.172 rows=476 loops=3)
+                                            Buffers: shared hit=17196
+                                            ->  Nested Loop  (cost=0.42..11208.53 rows=585 width=14) (actual time=0.120..9.989 rows=476 loops=3)
+                                                  Buffers: shared hit=11482
+                                                  ->  Parallel Seq Scan on invoice i  (cost=0.00..6500.55 rows=581 width=14) (actual time=0.103..8.067 rows=476 loops=3)
+                                                        Filter: (((status)::text <> 'cancelled'::text) AND (issued_at >= date_trunc('month'::text, now())) AND (issued_at < (date_trunc('month'::text, now()) + '1 mon'::interval)))
+                                                        Rows Removed by Filter: 57112
+                                                        Buffers: shared hit=4341
+                                                  ->  Index Scan using idx_invoice_item_invoice on invoice_item ii  (cost=0.42..8.09 rows=1 width=16) (actual time=0.003..0.004 rows=1 loops=1428)
+                                                        Index Cond: (invoice_id = i.invoice_id)
+                                                        Filter: ((item_type)::text = 'consultation'::text)
+                                                        Rows Removed by Filter: 1
+                                                        Buffers: shared hit=7141
+                                            ->  Index Scan using appointment_pkey on appointment a  (cost=0.42..0.54 rows=1 width=16) (actual time=0.002..0.002 rows=1 loops=1428)
+                                                  Index Cond: (appointment_id = ii.reference_id)
+                                                  Buffers: shared hit=5714
+                                      ->  Hash  (cost=1.55..1.55 rows=55 width=12) (actual time=0.017..0.017 rows=55 loops=3)
+                                            Buckets: 1024  Batches: 1  Memory Usage: 11kB
+                                            Buffers: shared hit=3
+                                            ->  Seq Scan on staff s  (cost=0.00..1.55 rows=55 width=12) (actual time=0.006..0.010 rows=55 loops=3)
+                                                  Buffers: shared hit=3
+                          ->  Sort  (cost=1.11..1.12 rows=5 width=22) (actual time=0.024..0.024 rows=4 loops=3)
+                                Sort Key: d.department_id
+                                Sort Method: quicksort  Memory: 25kB
+                                Buffers: shared hit=3
+                                Worker 0:  Sort Method: quicksort  Memory: 25kB
+                                Worker 1:  Sort Method: quicksort  Memory: 25kB
+                                ->  Seq Scan on department d  (cost=0.00..1.05 rows=5 width=22) (actual time=0.014..0.015 rows=5 loops=3)
+                                      Buffers: shared hit=3
+Planning:
+  Buffers: shared hit=492
+Planning Time: 0.827 ms
+Execution Time: 14.885 ms

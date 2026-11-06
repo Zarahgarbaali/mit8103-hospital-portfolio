@@ -1,0 +1,57 @@
+-- Q7 (before optimisation indexes), captured 2026-11-07 00:37 WAT
+-- execution times of 3 runs (ms): 31.590 36.469 31.640
+
+-- Business reason: a malaria treatment audit lists patients diagnosed with B54
+-- who were prescribed Artemether/Lumefantrine for that diagnosis.
+SELECT DISTINCT p.patient_id,
+       p.first_name,
+       p.last_name,
+       d.recorded_at::date AS diagnosed_on
+FROM diagnosis    d
+JOIN prescription pr ON pr.diagnosis_id = d.diagnosis_id
+JOIN medication   m  ON m.medication_id = pr.medication_id
+JOIN appointment  a  ON a.appointment_id = d.appointment_id
+JOIN patient      p  ON p.patient_id = a.patient_id
+WHERE d.icd_code = 'B54'
+  AND m.name = 'Artemether/Lumefantrine 80/480mg'
+ORDER BY diagnosed_on DESC, p.patient_id;
+
+Unique  (cost=5364.17..5366.57 rows=192 width=24) (actual time=30.297..31.361 rows=5820 loops=1)
+  Buffers: shared hit=65624
+  ->  Sort  (cost=5364.17..5364.65 rows=192 width=24) (actual time=30.296..30.543 rows=5821 loops=1)
+        Sort Key: ((d.recorded_at)::date) DESC, p.patient_id, p.first_name, p.last_name
+        Sort Method: quicksort  Memory: 495kB
+        Buffers: shared hit=65624
+        ->  Nested Loop  (cost=87.65..5356.89 rows=192 width=24) (actual time=0.560..28.340 rows=5821 loops=1)
+              Buffers: shared hit=65615
+              ->  Nested Loop  (cost=87.36..5297.12 rows=192 width=16) (actual time=0.549..22.991 rows=5821 loops=1)
+                    Buffers: shared hit=48152
+                    ->  Nested Loop  (cost=86.94..4686.15 rows=192 width=16) (actual time=0.543..12.104 rows=5821 loops=1)
+                          Buffers: shared hit=24868
+                          ->  Nested Loop  (cost=86.52..1872.94 rows=5760 width=8) (actual time=0.528..3.858 rows=5821 loops=1)
+                                Buffers: shared hit=1584
+                                ->  Seq Scan on medication m  (cost=0.00..1.38 rows=1 width=4) (actual time=0.007..0.010 rows=1 loops=1)
+                                      Filter: ((name)::text = 'Artemether/Lumefantrine 80/480mg'::text)
+                                      Rows Removed by Filter: 29
+                                      Buffers: shared hit=1
+                                ->  Bitmap Heap Scan on prescription pr  (cost=86.52..1796.43 rows=7513 width=12) (actual time=0.519..3.313 rows=5821 loops=1)
+                                      Recheck Cond: (medication_id = m.medication_id)
+                                      Heap Blocks: exact=1577
+                                      Buffers: shared hit=1583
+                                      ->  Bitmap Index Scan on idx_prescription_medication  (cost=0.00..84.64 rows=7513 width=0) (actual time=0.350..0.350 rows=5821 loops=1)
+                                            Index Cond: (medication_id = m.medication_id)
+                                            Buffers: shared hit=6
+                          ->  Index Scan using diagnosis_pkey on diagnosis d  (cost=0.42..0.49 rows=1 width=24) (actual time=0.001..0.001 rows=1 loops=5821)
+                                Index Cond: (diagnosis_id = pr.diagnosis_id)
+                                Filter: ((icd_code)::text = 'B54'::text)
+                                Buffers: shared hit=23284
+                    ->  Index Scan using appointment_pkey on appointment a  (cost=0.42..3.18 rows=1 width=16) (actual time=0.002..0.002 rows=1 loops=5821)
+                          Index Cond: (appointment_id = d.appointment_id)
+                          Buffers: shared hit=23284
+              ->  Index Scan using patient_pkey on patient p  (cost=0.29..0.31 rows=1 width=20) (actual time=0.001..0.001 rows=1 loops=5821)
+                    Index Cond: (patient_id = a.patient_id)
+                    Buffers: shared hit=17463
+Planning:
+  Buffers: shared hit=463
+Planning Time: 1.044 ms
+Execution Time: 31.640 ms

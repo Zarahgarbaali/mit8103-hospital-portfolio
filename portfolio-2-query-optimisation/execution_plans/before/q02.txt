@@ -1,0 +1,53 @@
+-- Q2 (before optimisation indexes), captured 2026-11-07 00:37 WAT
+-- execution times of 3 runs (ms): 13.549 13.579 14.341
+
+-- Business reason: the pharmacy restocks its fastest-moving drugs first.
+SELECT m.medication_id,
+       m.name,
+       count(*) AS times_prescribed
+FROM prescription pr
+JOIN medication m ON m.medication_id = pr.medication_id
+WHERE pr.issued_at >= now() - interval '30 days'
+GROUP BY m.medication_id, m.name
+ORDER BY times_prescribed DESC, m.name
+LIMIT 5;
+
+Limit  (cost=4434.81..4434.83 rows=5 width=31) (actual time=12.757..14.282 rows=5 loops=1)
+  Buffers: shared hit=1634
+  ->  Sort  (cost=4434.81..4434.89 rows=30 width=31) (actual time=12.756..14.280 rows=5 loops=1)
+        Sort Key: (count(*)) DESC, m.name
+        Sort Method: top-N heapsort  Memory: 25kB
+        Buffers: shared hit=1634
+        ->  Finalize GroupAggregate  (cost=4430.41..4434.31 rows=30 width=31) (actual time=12.699..14.234 rows=23 loops=1)
+              Group Key: m.medication_id
+              Buffers: shared hit=1628
+              ->  Gather Merge  (cost=4430.41..4433.86 rows=30 width=31) (actual time=12.687..14.224 rows=46 loops=1)
+                    Workers Planned: 1
+                    Workers Launched: 1
+                    Buffers: shared hit=1628
+                    ->  Sort  (cost=3430.40..3430.48 rows=30 width=31) (actual time=11.415..11.422 rows=23 loops=2)
+                          Sort Key: m.medication_id
+                          Sort Method: quicksort  Memory: 26kB
+                          Buffers: shared hit=1628
+                          Worker 0:  Sort Method: quicksort  Memory: 26kB
+                          ->  Partial HashAggregate  (cost=3429.37..3429.67 rows=30 width=31) (actual time=11.401..11.404 rows=23 loops=2)
+                                Group Key: m.medication_id
+                                Batches: 1  Memory Usage: 24kB
+                                Buffers: shared hit=1621
+                                Worker 0:  Batches: 1  Memory Usage: 24kB
+                                ->  Hash Join  (cost=1.68..3408.77 rows=4119 width=23) (actual time=0.033..11.072 rows=3545 loops=2)
+                                      Hash Cond: (pr.medication_id = m.medication_id)
+                                      Buffers: shared hit=1621
+                                      ->  Parallel Seq Scan on prescription pr  (cost=0.00..3394.76 rows=4119 width=4) (actual time=0.008..10.610 rows=3545 loops=2)
+                                            Filter: (issued_at >= (now() - '30 days'::interval))
+                                            Rows Removed by Filter: 82852
+                                            Buffers: shared hit=1616
+                                      ->  Hash  (cost=1.30..1.30 rows=30 width=23) (actual time=0.014..0.014 rows=30 loops=2)
+                                            Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                                            Buffers: shared hit=2
+                                            ->  Seq Scan on medication m  (cost=0.00..1.30 rows=30 width=23) (actual time=0.004..0.006 rows=30 loops=2)
+                                                  Buffers: shared hit=2
+Planning:
+  Buffers: shared hit=203
+Planning Time: 0.383 ms
+Execution Time: 14.341 ms
