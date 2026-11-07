@@ -158,23 +158,25 @@ rejoin)
     {
         echo "\$ docker start mongo1   ($(date '+%H:%M:%S'))"
         docker start mongo1 >/dev/null
-        echo "waiting 15 s for mongo1 to rejoin and catch up from the oplog"
-        sleep 15
+        echo "polling mongo1's own state once a second while it rejoins"
+        for i in $(seq 1 25); do
+            state=$(docker exec mongo1 mongosh --port 27018 --quiet --eval 'try { rs.status().members.find(m => m.self).stateStr } catch (e) { "starting" }' 2>/dev/null || echo "starting")
+            echo "  +${i}s  mongo1: ${state}"
+            [ "$state" = "PRIMARY" ] && break
+            sleep 1
+        done
+        echo
+        echo "mongo1 has priority 2: once it has caught up from the oplog it calls an election and takes the primary role back"
         new=$(wait_for_primary)
         echo
         echo "\$ rs.status() on ${new%%:*}"
         on_member "${new%%:*}" "${new##*:}" "$STATUS_JS"
         echo
-        echo "\$ mongo1 has replicated the write made while it was down"
+        echo "\$ mongo1 has the write that was made while it was down"
         on_member mongo1 27018 '
           db = db.getSiblingDB("hospital");
-          db.getMongo().setReadPref("secondary");
-          print(`mongo1 state: ${rs.status().myState === 1 ? "PRIMARY" : "SECONDARY"}   patient_records count: ${db.patient_records.countDocuments({})}`);
+          print(`patient_records count on mongo1: ${db.patient_records.countDocuments({})}`);
           printjson(db.patient_records.findOne({ patient_id: 6 }, { _id: 0 }));'
-        echo
-        echo "note: mongo1 has priority 2, so after catching up it calls an election and takes the primary role back"
-        sleep 15
-        on_member mongo1 27018 "$STATUS_JS"
     } | tee evidence/05_rejoin_rs_status.txt
     ;;
 

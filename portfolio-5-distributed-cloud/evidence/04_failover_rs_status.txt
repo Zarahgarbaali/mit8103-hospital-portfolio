@@ -1,14 +1,14 @@
 primary before failover: mongo1:27018
-$ docker stop mongo1   (00:57:55)
+$ docker stop mongo1   (00:59:18)
 waiting 20 s for the remaining members to detect the failure and elect a new primary
 
-$ rs.status() on mongo2   (00:58:19)
-replica set: hospitalRS   reported by: mongo2:27019   at: 2026-11-06T23:58:19.928Z
+$ rs.status() on mongo2   (00:59:42)
+replica set: hospitalRS   reported by: mongo2:27019   at: 2026-11-06T23:59:42.953Z
 member          state                     health  optime (last applied write)   sync source / message
 mongo1:27018    (not reachable/healthy)   0       1970-01-01T00:00:00.000Z      Error connecting to mongo1:27018 :: caused by :: Could not find address for mongo1:27018: SocketException: onInvoke :: caused by :: Host not found (authoritative)
-mongo2:27019    PRIMARY                   1       2026-11-06T23:58:15.000Z      
-mongo3:27020    SECONDARY                 1       2026-11-06T23:58:15.000Z      mongo2:27019
-primary: mongo2:27019   term: 2
+mongo2:27019    PRIMARY                   1       2026-11-06T23:59:38.000Z      
+mongo3:27020    SECONDARY                 1       2026-11-06T23:59:38.000Z      mongo2:27019
+primary: mongo2:27019   term: 4
 
 $ the hospital keeps writing: admit patient 6 through the replica-set connection
 insert acknowledged=true on mongo2:27019; count now 6

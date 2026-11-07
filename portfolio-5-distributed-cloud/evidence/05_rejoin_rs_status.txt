@@ -1,0 +1,31 @@
+$ docker start mongo1   (00:59:43)
+polling mongo1's own state once a second while it rejoins
+  +1s  mongo1: starting
+  +2s  mongo1: SECONDARY
+  +3s  mongo1: SECONDARY
+  +4s  mongo1: SECONDARY
+  +5s  mongo1: SECONDARY
+  +6s  mongo1: SECONDARY
+  +7s  mongo1: SECONDARY
+  +8s  mongo1: SECONDARY
+  +9s  mongo1: SECONDARY
+  +10s  mongo1: PRIMARY
+
+mongo1 has priority 2: once it has caught up from the oplog it calls an election and takes the primary role back
+
+$ rs.status() on mongo1
+replica set: hospitalRS   reported by: mongo1:27018   at: 2026-11-06T23:59:57.067Z
+member          state                     health  optime (last applied write)   sync source / message
+mongo1:27018    PRIMARY                   1       2026-11-06T23:59:55.000Z      
+mongo2:27019    SECONDARY                 1       2026-11-06T23:59:55.000Z      mongo1:27018
+mongo3:27020    SECONDARY                 1       2026-11-06T23:59:55.000Z      mongo2:27019
+primary: mongo1:27018   term: 5
+
+$ mongo1 has the write that was made while it was down
+patient_records count on mongo1: 6
+{
+  patient_id: 6,
+  full_name: 'Olumide Adeleke',
+  blood_group: 'O+',
+  ward: 'Surgical Ward'
+}
