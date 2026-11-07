@@ -29,9 +29,11 @@ flowchart LR
 | Initiate | `./replica_demo.sh init` | `hospitalRS` created, `mongo1` PRIMARY (term 1) | `01_rs_status.txt` |
 | Baseline | `./replica_demo.sh status` | 1 PRIMARY + 2 SECONDARY, both syncing from `mongo1` | `01_rs_status.txt` |
 | Write / read | `./replica_demo.sh write-read` | 5 records written with `w: majority`. Both secondaries return 5, lag 0 s. A direct write on a secondary is refused (`NotWritablePrimary`) | `02_write_primary.txt`, `03_read_secondary.txt` |
-| Failover | `./replica_demo.sh failover` | `docker stop mongo1`, then `mongo2` elected PRIMARY (term 4). Writes continue (patient 6) | `04_failover_rs_status.txt` |
-| Rejoin | `./replica_demo.sh rejoin` | `mongo1` rejoins as SECONDARY, catches up (has patient 6), and after about 10 s retakes PRIMARY thanks to priority 2 (term 5) | `05_rejoin_rs_status.txt` |
-| Minority partition | `./replica_demo.sh minority` | With 2 of 3 members down, `mongo1` steps down: no primary, writes refused, reads still served. A primary returns when they restart (term 6) | `06_minority_no_primary.txt` |
+| Failover | `./replica_demo.sh failover` | `docker stop mongo1`, then `mongo2` elected PRIMARY (term 99). Writes continue (patient 6) | `04_failover_rs_status.txt` |
+| Rejoin | `./replica_demo.sh rejoin` | `mongo1` rejoins as SECONDARY, catches up (has patient 6), and after about 10 s retakes PRIMARY thanks to priority 2 (term 100) | `05_rejoin_rs_status.txt` |
+| Minority partition | `./replica_demo.sh minority` | With 2 of 3 members down, `mongo1` steps down: no primary, writes refused, reads still served. A primary returns when they restart (term 101) | `06_minority_no_primary.txt` |
+
+The term number counts elections. It jumped from 6 to the high 90s because the set stayed up for a day and held elections on its own at irregular times. The container logs show over 30 elections per member, most likely when the Mac slept or Docker Desktop paused its VM and heartbeats timed out. The failover, rejoin and minority steps were re-run on 8 November, when the screenshot was taken, so the evidence files and screenshot match.
 
 ## How to run
 

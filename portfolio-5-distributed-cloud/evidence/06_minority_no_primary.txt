@@ -1,12 +1,12 @@
-$ docker stop mongo2 mongo3: mongo1 is now alone, a minority of 1 out of 3   (01:00:06)
+$ docker stop mongo2 mongo3: mongo1 is now alone, a minority of 1 out of 3   (00:58:23)
 
 $ rs.status() on mongo1
-replica set: hospitalRS   reported by: mongo1:27018   at: 2026-11-07T00:00:25.258Z
+replica set: hospitalRS   reported by: mongo1:27018   at: 2026-11-07T23:58:42.178Z
 member          state                     health  optime (last applied write)   sync source / message
-mongo1:27018    SECONDARY                 1       2026-11-07T00:00:15.000Z      
+mongo1:27018    SECONDARY                 1       2026-11-07T23:58:31.000Z      
 mongo2:27019    (not reachable/healthy)   0       1970-01-01T00:00:00.000Z      Error connecting to mongo2:27019 :: caused by :: Could not find address for mongo2:27019: SocketException: onInvoke :: caused by :: Host not found (authoritative)
 mongo3:27020    (not reachable/healthy)   0       1970-01-01T00:00:00.000Z      Error connecting to mongo3:27020 :: caused by :: Could not find address for mongo3:27020: SocketException: onInvoke :: caused by :: Host not found (authoritative)
-primary: NONE   term: 5
+primary: NONE   term: 100
 
 $ attempt a write on mongo1
 refused: NotWritablePrimary - not primary
@@ -14,11 +14,11 @@ refused: NotWritablePrimary - not primary
 $ reads are still possible with readPreference secondary (possibly stale)
 count readable on the isolated member: 6
 
-$ docker start mongo2 mongo3   (01:00:25)
+$ docker start mongo2 mongo3   (00:58:42)
 primary restored: mongo1:27018
-replica set: hospitalRS   reported by: mongo1:27018   at: 2026-11-07T00:00:36.312Z
+replica set: hospitalRS   reported by: mongo1:27018   at: 2026-11-07T23:58:53.735Z
 member          state                     health  optime (last applied write)   sync source / message
-mongo1:27018    PRIMARY                   1       2026-11-07T00:00:30.000Z      
-mongo2:27019    SECONDARY                 1       2026-11-07T00:00:30.000Z      mongo1:27018
-mongo3:27020    SECONDARY                 1       2026-11-07T00:00:30.000Z      mongo1:27018
-primary: mongo1:27018   term: 6
+mongo1:27018    PRIMARY                   1       2026-11-07T23:58:47.000Z      
+mongo2:27019    SECONDARY                 1       2026-11-07T23:58:47.000Z      mongo1:27018
+mongo3:27020    SECONDARY                 1       2026-11-07T23:58:47.000Z      mongo1:27018
+primary: mongo1:27018   term: 101
