@@ -70,4 +70,5 @@ Then connect Compass to `mongodb://mongo1:27018,mongo2:27019,mongo3:27020/?repli
 ## Screenshots
 
 - `screenshots/01_failover_terminal.png` - terminal output of `./replica_demo.sh failover` showing `mongo2` as PRIMARY
-- `screenshots/02_compass_replica_set.png` - Compass connected to `hospitalRS`, showing the 3-member topology
+- `screenshots/02_compass_replica_set.png` - Compass connection info for `hospitalRS`: 3 hosts, replica set, 3 nodes, MongoDB 7.0
+- `screenshots/03_compass_rs_members.png` - Compass shell: `mongo1` PRIMARY (priority 2), `mongo2` and `mongo3` SECONDARY, all healthy
