@@ -34,7 +34,7 @@ Relational design for **MIVA Teaching Hospital**, implemented in PostgreSQL 16.
 | File | Purpose |
 |---|---|
 | `er_diagram.dbml` | ER model source. Paste into [dbdiagram.io](https://dbdiagram.io) to render. |
-| `er_diagram.png` | Exported ER diagram |
+| `er_diagram.png` | ER diagram rendered from `er_diagram.dbml` with [dbml-renderer](https://github.com/softwaretechnik-berlin/dbml-renderer) (`npx @softwaretechnik/dbml-renderer -i er_diagram.dbml -o er_diagram.svg`) |
 | `schema.sql` | 16 tables, keys, CHECK / UNIQUE / NOT NULL constraints, business-rule triggers |
 | `indexes.sql` | Indexes on every foreign key, plus the `(doctor_id, scheduled_for)` composite |
 | `seed.sql` | Reproducible seed data (`setseed(0.42)`) |
