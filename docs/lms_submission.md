@@ -5,7 +5,6 @@ author: "Zarah Garba Ali - Student ID 301918521"
 date: "September 2026 Cohort"
 ---
 
-<!-- PAGE 1 -->
 
 # 1. Student and Submission Details
 
@@ -44,7 +43,7 @@ The same hospital, patients and doctors are used in all five portfolio activitie
 
 **Portfolio 5 - Distributed and Cloud Database Exercise.** A three-node MongoDB replica set in Docker. Majority writes on the primary are read back from secondaries with 0 s lag. Stopping the primary triggered an automatic election, the old primary rejoined, caught up and failed back, and a minority partition refused writes (CP behaviour). The discussion covers sharding key choice, CAP for the admissions desk, consistency models and PostgreSQL streaming replication.
 
-<!-- PAGE 2 -->
+
 
 # 4. Evidence Summary
 
@@ -75,7 +74,7 @@ Working with both systems made the split between them feel natural rather than f
 
 With more time, I would first fix Q9 properly by storing `amount_paid` on `invoice` and keeping it up to date in the payment trigger, instead of summing 155,000 payments on every request. I would schedule the materialised view refresh with `pg_cron` so the revenue report is never stale, and put PgBouncer in front of PostgreSQL, because a real hospital would have many short connections from many desks. On the MongoDB side, I would secure the replica set with a keyfile and authentication, which I left off to keep the local demo simple, and actually try sharding on a hashed `patient_id` rather than only discussing it.
 
-<!-- PAGE 3 -->
+
 
 # 6. Tools and References
 
@@ -94,10 +93,10 @@ With more time, I would first fix Q9 properly by storing `amount_paid` on `invoi
 
 # 7. Declaration of AI and Tool Use
 
-I, Zarah Garba Ali (Student ID 301918521), used Cursor and Claude to support this work in the following ways: understanding concepts, drafting initial SQL and Mongo scripts which I then edited and tested, explaining execution plans, and reviewing my writeups for clarity. All design decisions — the choice of case study, the schema design, the index choices, the isolation walkthroughs, the Mongo modelling, and the replica set setup — are my own. The technical reflection was drafted with AI assistance from my work in this repository, and I reviewed and edited it so that it reflects my own experience. All code was executed, verified, and in several places rewritten by me after testing. No AI-generated text was submitted without review.
+I, Zarah Garba Ali (Student ID 301918521), used Cursor and Claude to support this work in the following ways: understanding concepts, drafting initial SQL and Mongo scripts which I then edited and tested, explaining execution plans, and reviewing my writeups for clarity. All design decisions (the choice of case study, the schema design, the index choices, the isolation walkthroughs, the Mongo modelling and the replica set setup) are my own. The technical reflection was drafted with AI assistance from my work in this repository, and I reviewed and edited it so that it reflects my own experience. All code was executed, verified, and in several places rewritten by me after testing. No AI-generated text was submitted without review.
 
 # 8. Individual Work Statement
 
 I confirm that this portfolio is my own individual work. I discussed general concepts only, and the database design, implementation, scripts, analysis, documentation and conclusions submitted here were produced by me. All sources, tools and libraries used are acknowledged above.
 
-Signed: Zarah Garba Ali, Student ID 301918521. Date: ____________
+Signed: Zarah Garba Ali, Student ID 301918521. Date: 8 November 2026
