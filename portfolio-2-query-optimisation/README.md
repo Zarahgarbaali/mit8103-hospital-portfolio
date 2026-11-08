@@ -77,4 +77,4 @@ Timestamps in the data are generated relative to `now()`, so "last 30 days" and 
 - `evidence/materialized_view_demo.txt` - 102 ms live vs 0.03 ms from the view, totals cross-checked
 - `evidence/write_cost_test.txt` - 864 ms vs 650 ms for 50k inserts
 - `screenshots/01_query2_result.png` - Q2 result grid in DBeaver
-- `screenshots/02_query4_plan.png` - Q4 `EXPLAIN ANALYZE` in DBeaver
+- `screenshots/02_query4_plan.png` - Q4 `EXPLAIN ANALYZE` in DBeaver after the indexes: the same plan as `execution_plans/after/` (Index Only Scan on `idx_appointment_scheduled_for`, Hash Join, HashAggregate). DBeaver reports about 100 ms against 37 ms in psql, because the laptop was busier and DBeaver's JDBC session differs; the plan shape is the evidence, not the exact time
