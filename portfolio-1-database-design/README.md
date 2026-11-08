@@ -184,4 +184,4 @@ The repo is mounted read-only at `/workspace` inside the container, so no files 
 - `evidence/row_counts.txt` - row count per table and the full index list
 - `evidence/constraint_tests_output.txt` - output of the 12 constraint tests
 - `screenshots/01_schema_loaded.png` - DBeaver schema tree showing all 16 tables
-- `screenshots/02_row_counts.png` - row counts in DBeaver
+- `screenshots/02_row_counts.png` - row counts in DBeaver. This was taken after Portfolio 2's `bulk_load.sql` (20,050 patients, 300,100 appointments) and the Portfolio 3 demos (4 audit rows), so the counts are larger than the seed-only counts in `evidence/row_counts.txt`
