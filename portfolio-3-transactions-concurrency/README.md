@@ -80,9 +80,11 @@ Every scenario cleans up after itself: phone numbers, bed admissions, demo appoi
 
 ## Screenshots (manual DBeaver runs)
 
-- `screenshots/01_isolation_read_committed.png`
-- `screenshots/02_isolation_repeatable_read.png`
-- `screenshots/03_isolation_serializable.png`
-- `screenshots/04_deadlock.png`
-- `screenshots/05_row_lock_blocking.png`
-- `screenshots/06_row_lock_released.png`
+Each image shows the Session A and Session B tabs side by side, left to right in the order the steps were run.
+
+- `screenshots/01_isolation_read_committed.png` - B reads the old phone while A's update is uncommitted, then the new phone after A commits
+- `screenshots/02_isolation_repeatable_read.png` - A commits a new phone; B still reads the old one, then its UPDATE fails with `could not serialize access due to concurrent update`
+- `screenshots/03_isolation_serializable.png` - both see bed 1 free; A admits patient 45 and commits; B's insert fails with SQLSTATE 40001 (pivot, during write)
+- `screenshots/04_deadlock.png` - A waits for patient 2 while B holds it; B asks for patient 1 and gets `40P01 deadlock detected`; A's update then completes (16 s wait)
+- `screenshots/05_row_lock_blocking.png` - A holds the last insulin pack with `FOR UPDATE`; B's `FOR UPDATE` is still executing (blocked)
+- `screenshots/06_row_lock_released.png` - after A commits, B's read returns stock 0 after a 28 s wait, so B cannot sell the same pack
