@@ -7,7 +7,7 @@ These walkthroughs run the scenarios in `02_isolation_levels.sql` by hand in two
 1. Right-click the `hospital_db` connection and choose **SQL Editor > New SQL script**. Do this twice and name the tabs **Session A** and **Session B**. Each editor is a separate database connection (DBeaver's default "separate connection per editor").
 2. Leave **both** tabs in **Auto-Commit** mode and start every transaction with an explicit `BEGIN` (or `BEGIN ISOLATION LEVEL ...`). The transaction then stays open until you run `COMMIT` or `ROLLBACK`. Do not switch to Manual Commit: DBeaver then opens its own transaction first, so `BEGIN ISOLATION LEVEL ...` only raises "there is already a transaction in progress" and the session stays at READ COMMITTED.
 3. Arrange the tabs side by side (drag one tab to the right edge) so both are visible in the screenshots.
-4. Run one statement at a time with **Ctrl+Enter** (Cmd+Enter on Mac), with the cursor on the statement. Skip the `pg_sleep` lines; you control the timing yourself.
+4. Run one statement at a time with **Ctrl+Enter** (Cmd+Enter on Mac), with the caret on the statement. Skip the `pg_sleep` lines; you control the timing yourself.
 
 PostgreSQL's default level is READ COMMITTED. PostgreSQL never allows dirty reads, even at READ UNCOMMITTED, which it treats as READ COMMITTED.
 
