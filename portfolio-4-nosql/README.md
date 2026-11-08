@@ -61,7 +61,7 @@ $M /workspace/portfolio-4-nosql/queries.js
 
 (In zsh, use a function instead of `$M`: `m() { docker exec hospital_mongo mongosh ... hospital "$@"; }`.)
 
-MongoDB Compass connection string: `mongodb://hospital_admin:hospital_pass@localhost:27017/?authSource=admin`, database `hospital`.
+MongoDB Compass connection string: `mongodb://hospital_admin:hospital_pass@localhost:27017/?authSource=admin`, database `hospital`. If a Homebrew `mongod` is also running, it binds `127.0.0.1:27017` first and Compass reports "Authentication failed"; stop it (`brew services stop mongodb-community`) while using the container.
 
 ## How it was tested
 
